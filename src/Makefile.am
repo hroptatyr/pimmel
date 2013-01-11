@@ -13,6 +13,15 @@ CLEANFILES =
 EXTRA_DIST = $(BUILT_SOURCES)
 
 
+bin_PROGRAMS += pimmel-noti
+pimmel_noti_SOURCES = pimmel-noti.c pimmel-noti-clo.ggo
+pimmel_noti_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_noti_CPPFLAGS += $(libev_CFLAGS)
+pimmel_noti_LDFLAGS = $(AM_LDFLAGS)
+pimmel_noti_LDFLAGS += $(libev_LIBS)
+BUILT_SOURCES += pimmel-noti-clo.c pimmel-noti-clo.h
+
+
 ## our rule for gengetopt
 %.c %.h: %.ggo
 	$(AM_V_GEN) gengetopt -l -i $< -F $*
