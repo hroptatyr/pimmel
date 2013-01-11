@@ -456,6 +456,7 @@ main(int argc, char *argv[])
 		goto out;
 	} else if (mcast6_listener_init(s, PMML_NETWORK_SERVICE)) {
 		perror("cannot join mc groups");
+		close(s);
 		res = 1;
 		goto out;
 	}
