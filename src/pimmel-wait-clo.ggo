@@ -1,0 +1,10 @@
+args "--unamed-opts --no-handle-error --long-help -a pimmel_args_info -f pimmel_parser"
+package "pimmel-wait"
+usage "pimmel-wait [OPTION]... CHANNEL"
+description "Subscribe to CHANNEL and wait for events.
+
+By default only 1 event from the channel is reported."
+
+option "timeout" -
+	"Wait at most SEC seconds"
+	int typestr="SEC" optional

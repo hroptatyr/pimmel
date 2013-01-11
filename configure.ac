@@ -48,6 +48,10 @@ AC_CHECK_SIZEOF([size_t])
 
 AC_CHECK_HEADERS([stdbool.h])
 AC_CHECK_HEADERS([fcntl.h])
+AC_CHECK_HEADERS([sys/types.h])
+AC_CHECK_HEADERS([sys/socket.h])
+AC_CHECK_HEADERS([netinet/in.h])
+AC_CHECK_HEADERS([arpa/inet.h])
 
 ## check for working c11 features
 SXE_CHECK_ANON_STRUCTS_DECL

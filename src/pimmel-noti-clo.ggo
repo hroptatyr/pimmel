@@ -1,0 +1,4 @@
+args "--unamed-opts --no-handle-error --long-help -a pimmel_args_info -f pimmel_parser"
+package "pimmel-noti"
+usage "pimmel-noti [OPTION]... CHANNEL MESSAGE"
+description "Publish MESSAGE in CHANNEL."
