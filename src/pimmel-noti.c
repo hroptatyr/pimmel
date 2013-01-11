@@ -225,10 +225,26 @@ main(int argc, char *argv[])
 
 	/* publish this one event */
 	{
+		char buf[1280] = "\xff" "8\x00\x7f" /*rev*/"\x01"
+			/*socktyp pub*/"\x01"
+			/*final short*/"\x00"
+			/*identity*/"\x00"
+			/*body, here as: more short*/"\x01";
 		const char *b = argi->inputs[0];
 		size_t z = strlen(b);
+		const char *msg = argi->inputs[1];
+		size_t msz = strlen(msg);
 
-		if (sendto(s, b, z, 0, &dst.sa, sizeof(dst)) < 0) {
+		buf[9] = (uint8_t)z;
+		memcpy(buf + 9 + 1, b, (uint8_t)z);
+
+		buf[10 + z] = /*final short*/'\0';
+		buf[10 + z + 1] = (uint8_t)msz;
+
+		memcpy(buf + 10 + z + 2, msg, (uint8_t)msz);
+		z = 10 + z + 2 + msz;
+
+		if (sendto(s, buf, z, 0, &dst.sa, sizeof(dst)) < 0) {
 			perror("cannot publish");
 			res = 1;
 		}
