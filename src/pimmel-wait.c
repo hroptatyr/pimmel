@@ -37,6 +37,7 @@
 #if defined HAVE_CONFIG_H
 # include "config.h"
 #endif	/* HAVE_CONFIG_H */
+#include <string.h>
 #include <stdio.h>
 #if defined HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -77,6 +78,16 @@
 #define PMML_MCAST6_LINK_LOCAL	"ff02::134"
 /* site-local */
 #define PMML_MCAST6_SITE_LOCAL	"ff05::134"
+
+#if defined DEBUG_FLAG && !defined BENCHMARK
+# include <assert.h>
+# define PMML_DEBUG(args...)	fprintf(stderr, args)
+# define MAYBE_NOINLINE		__attribute__((noinline))
+#else  /* !DEBUG_FLAG */
+# define PMML_DEBUG(args...)
+# define assert(x)
+# define MAYBE_NOINLINE
+#endif	/* DEBUG_FLAG */
 
 /* node local, site local and link local */
 static struct ipv6_mreq ALGN16(mreq6_nolo);
@@ -185,7 +196,7 @@ mcast6_join(int s, short unsigned int UNUSED(port))
 
 	for (size_t i = 0; i < countof(g); i++) {
 		if (UNLIKELY(mcast6_join_group(s, g[i].a, g[i].r) < 0)) {
-			;
+			perror("cannot join group");
 		}
 	}
 	return 0;
@@ -278,9 +289,81 @@ ev_io_shut(EV_P_ ev_io w[static 1])
 
 
 static void
-sub_cb(EV_P_ ev_io *UNUSED(w), int UNUSED(revents))
+sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
-	puts("ACK");
+	static const char hdr[] = "\xff" "8\x00\x7f" /*rev*/"\x01"
+		/*socktyp pub*/"\x01"
+		/*final short (implicit \nul) */;
+	char buf[1280];
+	ssize_t nrd;
+	/* for channel inspection */
+	size_t chz;
+	const char *chn;
+	size_t msz;
+	const char *msg;
+
+	/* read it off the wire for inspection */
+	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= (ssize_t)sizeof(hdr) ||
+	    /* and see if they speak zmtp */
+	    memcmp(hdr, buf, sizeof(hdr))) {
+		/* nope */
+		return;
+	}
+	{
+		const char *ep = buf + nrd;;
+		const char *p = buf + sizeof(hdr);
+		size_t idz;
+
+		/* *p should point to the length of the identity */
+		idz = *p++;
+		if (UNLIKELY((p += idz) >= ep)) {
+			return;
+		}
+
+		/* we now expect a more frame in *p */
+		if (*p++ != '\x01') {
+			return;
+		}
+
+		/* yay, we found the channel */
+		if ((chz = *p++) == 0U) {
+			/* don't want no, naught byte channels */
+			return;
+		}
+		/* keep a note about the channel */
+		chn = p;
+		/* skip to the body */
+		if (UNLIKELY((p += chz) >= ep)) {
+			return;
+		}
+		/* check if channel ends in / */
+		if (chn[chz - 1] == '/') {
+			--chz;
+		}
+
+		/* final short there? */
+		if (*p++ != '\x00') {
+			return;
+		}
+		/* yay, we found the message */
+		msz = *p++;
+		msg = p;
+		/* skip to message ending */
+		if (UNLIKELY((p += msz) > ep)) {
+			return;
+		}
+		/* finalise with \n */
+		buf[msg - buf + msz] = '\n';
+	}
+
+	if (memcmp(chn, w->data, chz)) {
+		/* no match */
+		PMML_DEBUG("chan no matchee\n");
+		return;
+	}
+
+	/* FANTASTIC, print the message and unloop */
+	write(STDOUT_FILENO, msg, msz + 1);
 	ev_unloop(EV_A_ EVUNLOOP_ALL);
 	return;
 }
@@ -328,7 +411,7 @@ main(int argc, char *argv[])
 	if (pimmel_parser(argc, argv, argi)) {
 		res = 1;
 		goto out;
-	} else if (argi->inputs_num == 0U) {
+	} else if (argi->inputs_num < 1U) {
 		pimmel_parser_print_help();
 		res = 1;
 		goto out;
