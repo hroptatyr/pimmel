@@ -39,6 +39,7 @@
 #endif	/* HAVE_CONFIG_H */
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #if defined HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -269,25 +270,57 @@ mcast6_listener_deinit(int sock)
 	return;
 }
 
-static inline void
-shut_sock(int fd)
-{
-	shutdown(fd, SHUT_RDWR);
-	close(fd);
-	return;
-}
-
 
 static void
 ev_io_shut(EV_P_ ev_io w[static 1])
 {
 	ev_io_stop(EV_A_ w);
-	shut_sock(w->fd);
+	close(w->fd);
 	w->fd = -1;
 	return;
 }
 
 
+static const char *sub_flt;
+static size_t sub_flz;
+
+static void
+init_sub_flt(const char *fltstr)
+{
+	sub_flt = fltstr;
+	sub_flz = strlen(sub_flt);
+
+	if (LIKELY(sub_flz)) {
+		if (sub_flt[sub_flz - 1] == '/') {
+			sub_flz--;
+		}
+		if (sub_flt[0] != '/') {
+			sub_flz = 0UL;
+		}
+	}
+	return;
+}
+
+static void
+free_sub_flt(void)
+{
+	return;
+}
+
+static bool
+matchesp(const char *chn, size_t chz)
+{
+/* check if the channel we monitor is a superdirectory of CHN */
+	if (chz < sub_flz) {
+		/* can't be */
+		return false;
+	} else if (memcmp(chn, sub_flt, sub_flz)) {
+		/* nope */
+		return false;
+	}
+	return true;
+}
+
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
@@ -356,7 +389,7 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 		buf[msg - buf + msz] = '\n';
 	}
 
-	if (memcmp(chn, w->data, chz)) {
+	if (!matchesp(chn, chz)) {
 		/* no match */
 		PMML_DEBUG("chan no matchee\n");
 		return;
@@ -436,14 +469,18 @@ main(int argc, char *argv[])
 	ev_signal_init(sigterm_watcher, sigall_cb, SIGTERM);
 	ev_signal_start(EV_A_ sigterm_watcher);
 
-	sub->data = argi->inputs[0];
 	ev_io_init(sub, sub_cb, s, EV_READ);
 	ev_io_start(EV_A_ sub);
+
+	init_sub_flt(argi->inputs[0]);
 
 
 	/* now wait for events to arrive */
 	ev_loop(EV_A_ 0);
 
+
+	/* free sub filter */
+	free_sub_flt();
 
 	mcast6_listener_deinit(sub->fd);
 	ev_io_shut(EV_A_ sub);
