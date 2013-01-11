@@ -37,6 +37,7 @@ AC_PROG_CC([icc gcc tcc cc])
 SXE_CHECK_CC([c11 c1x c99 gnu99])
 AC_C_BIGENDIAN
 SXE_CHECK_CFLAGS
+LT_INIT
 
 ## check for byteorder utils
 AC_CHECK_HEADERS([endian.h sys/endian.h byteorder.h byteswap.h])
