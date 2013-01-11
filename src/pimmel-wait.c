@@ -385,7 +385,9 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 		if (UNLIKELY((p += msz) > ep)) {
 			return;
 		}
-		/* finalise with \n */
+
+		/* finalise channel with \t and message with \n */
+		buf[chn - buf + chz] = '\t';
 		buf[msg - buf + msz] = '\n';
 	}
 
@@ -396,6 +398,7 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 	}
 
 	/* FANTASTIC, print the message and unloop */
+	write(STDOUT_FILENO, chn, chz + 1);
 	write(STDOUT_FILENO, msg, msz + 1);
 	ev_unloop(EV_A_ EVUNLOOP_ALL);
 	return;
