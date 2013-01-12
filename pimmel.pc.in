@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+libdir=@libdir@
+datadir=@datarootdir@
+utedir=@utedir@
+
+Name: @PACKAGE_NAME@
+Description: Ad-hoc message propagation
+Version: @VERSION@
+Libs: -L${libdir} -lpimmel
+Cflags: -I${headerdir}
+

@@ -37,6 +37,7 @@ AC_PROG_CC([icc gcc tcc cc])
 SXE_CHECK_CC([c11 c1x c99 gnu99])
 AC_C_BIGENDIAN
 SXE_CHECK_CFLAGS
+LT_INIT
 
 ## check for byteorder utils
 AC_CHECK_HEADERS([endian.h sys/endian.h byteorder.h byteswap.h])
@@ -51,6 +52,7 @@ AC_CHECK_HEADERS([fcntl.h])
 AC_CHECK_HEADERS([sys/types.h])
 AC_CHECK_HEADERS([sys/socket.h])
 AC_CHECK_HEADERS([netinet/in.h])
+AC_CHECK_HEADERS([netinet/tcp.h])
 AC_CHECK_HEADERS([arpa/inet.h])
 
 ## check for working c11 features
@@ -71,5 +73,6 @@ dnl -------------------------------------------------------------------------
 dnl final output
 dnl -------------------------------------------------------------------------
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([pimmel.pc])
 AC_CONFIG_FILES([src/Makefile])
 AC_OUTPUT

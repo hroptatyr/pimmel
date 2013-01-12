@@ -13,6 +13,12 @@ CLEANFILES =
 EXTRA_DIST = $(BUILT_SOURCES)
 
 
+include_HEADERS = pimmel.h
+noinst_HEADERS += ud-sock.h
+
+lib_LTLIBRARIES += libpimmel.la
+libpimmel_la_SOURCES = pimmel.c
+
 bin_PROGRAMS += pimmel-noti
 pimmel_noti_SOURCES = pimmel-noti.c pimmel-noti-clo.ggo
 pimmel_noti_CPPFLAGS = $(AM_CPPFLAGS)
