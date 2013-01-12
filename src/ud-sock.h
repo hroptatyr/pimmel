@@ -38,9 +38,22 @@
 #define INCLUDED_ud_sock_h_
 
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/tcp.h>
-#include <fcntl.h>
+
+#if !defined HAVE_CONFIG_H
+# error include config.h before me or define HAVE_CONFIG_H guard
+#endif	/* HAVE_CONFIG_H */
+#if defined HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif	/* HAVE_SYS_SOCKET_H */
+#if defined HAVE_NETINET_IN_H
+# include <netinet/in.h>
+#endif	/* HAVE_NETINET_IN_H */
+#if defined HAVE_NETINET_TCP_H
+# include <netinet/tcp.h>
+#endif	/* HAVE_NETINET_TCP_H */
+#if defined HAVE_FCNTL_H
+# include <fcntl.h>
+#endif	/* HAVE_FCNTL_H */
 
 /* some (possibly) missing goodness */
 #if !defined SOCK_DCCP
