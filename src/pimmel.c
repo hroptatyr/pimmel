@@ -314,4 +314,10 @@ pmml_close(int s)
 	return close(s);
 }
 
+ssize_t
+pmml_send(int s, const void *b, size_t z, int flags)
+{
+	return sendto(s, b, z, flags, &dst.sa, sizeof(dst));
+}
+
 /* pimmel.c ends here */

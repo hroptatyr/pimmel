@@ -37,6 +37,7 @@
 #if !defined INCLUDED_pimmel_h_
 #define INCLUDED_pimmel_h_
 
+#include <stdint.h>
 #include <stdarg.h>
 
 #if defined __cplusplus
@@ -73,6 +74,10 @@ extern int pmml_socket(int flags, ...);
 /**
  * Close a socket and free associated resources. */
 extern int pmml_close(int sock);
+
+/**
+ * Like `send()' for pimmel sockets. */
+extern ssize_t pmml_send(int s, const void *buf, size_t bsz, int flags);
 
 #if defined __cplusplus
 }
