@@ -55,85 +55,11 @@
 # undef EV_P
 # define EV_P  struct ev_loop *loop __attribute__((unused))
 #endif	/* HAVE_EV_H */
-
+#include <pimmel.h>
 #include "nifty.h"
 #include "ud-sock.h"
 
 #define MAYBE_UNUSED	UNUSED
-
-#define DEFAULT_TIMEOUT		60
-#define UDP_MULTICAST_TTL	64
-
-#if !defined IPPROTO_IPV6
-# error "system not fit for ipv6 transport"
-#endif	/* IPPROTO_IPV6 */
-
-#define PMML_NETWORK_SERVICE	7665/*PMML on the phone*/
-/* http://www.iana.org/assignments/ipv6-multicast-addresses/ lists us 
- * as ff0x:0:0:0:0:0:0:134 */
-/* node-local */
-#define PMML_MCAST6_NODE_LOCAL	"ff01::134"
-/* link-local */
-#define PMML_MCAST6_LINK_LOCAL	"ff02::134"
-/* site-local */
-#define PMML_MCAST6_SITE_LOCAL	"ff05::134"
-
-
-/* networking layer, will disappear */
-static void
-fiddle_with_mtu(int MAYBE_UNUSED(s))
-{
-#if defined IPV6_PATHMTU
-	struct ip6_mtuinfo mtui;
-	socklen_t mtuilen = sizeof(mtui);
-#endif	/* IPV6_PATHMTU */
-
-#if defined IPV6_USE_MIN_MTU
-	/* use minimal mtu */
-	opt = 1;
-	setsockopt(s, IPPROTO_IPV6, IPV6_USE_MIN_MTU, &opt, sizeof(opt));
-#endif	/* IPV6_USE_MIN_MTU */
-#if defined IPV6_DONTFRAG
-	/* rather drop a packet than to fragment it */
-	opt = 1;
-	setsockopt(s, IPPROTO_IPV6, IPV6_DONTFRAG, &opt, sizeof(opt));
-#endif	/* IPV6_DONTFRAG */
-#if defined IPV6_RECVPATHMTU
-	/* obtain path mtu to send maximum non-fragmented packet */
-	opt = 1;
-	setsockopt(s, IPPROTO_IPV6, IPV6_RECVPATHMTU, &opt, sizeof(opt));
-#endif	/* IPV6_RECVPATHMTU */
-#if defined IPV6_PATHMTU
-	/* obtain current pmtu */
-	if (getsockopt(s, IPPROTO_IPV6, IPV6_PATHMTU, &mtui, &mtuilen) < 0) {
-		perror("could not obtain pmtu");
-	}
-#endif	/* IPV6_PATHMTU */
-	return;
-}
-
-static int
-mc6_socket(void)
-{
-	volatile int s;
-
-	/* try v6 first */
-	if ((s = socket(PF_INET6, SOCK_DGRAM, IPPROTO_IP)) < 0) {
-		return -1;
-	}
-
-#if defined IPV6_V6ONLY
-	{
-		int yes = 1;
-		setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &yes, sizeof(yes));
-	}
-#endif	/* IPV6_V6ONLY */
-	/* be less blocking */
-	setsock_nonblock(s);
-	/* and we do care about the mtu */
-	fiddle_with_mtu(s);
-	return s;
-}
 
 
 static void
@@ -170,8 +96,6 @@ main(int argc, char *argv[])
 	struct ev_loop *loop;
 	ev_signal sigint_watcher[1];
 	ev_signal sigterm_watcher[1];
-	/* the destination */
-	union ud_sockaddr_u dst = {0};
 	/* business logic */
 	int res = 0;
 	int s;
@@ -186,31 +110,10 @@ main(int argc, char *argv[])
 		goto out;
 	}
 
-	if ((s = mc6_socket()) < 0) {
-		perror("cannot initialise mc socket");
+	if ((s = pmml_socket(PMML_FL_PUB)) < 0) {
+		perror("cannot initialise pimmel socket");
 		res = 1;
 		goto out;
-	} else if (({
-			union ud_sockaddr_u sa = {
-				.sa6.sin6_family = AF_INET6,
-				.sa6.sin6_addr = IN6ADDR_ANY_INIT,
-				.sa6.sin6_port = 0,
-			};
-
-			/* as a courtesy to tools bind the channel */
-			bind(s, &sa.sa, sizeof(sa)) < 0;})) {
-		perror("cannot connect to pimmel network");
-		res = 1;
-		goto out;
-	} else {
-		/* set destination address */
-		dst.sa6.sin6_family = AF_INET6;
-		/* we pick link-local here for simplicity */
-		inet_pton(AF_INET6, PMML_MCAST6_LINK_LOCAL, &dst.sa6.sin6_addr);
-		/* port as well innit */
-		dst.sa6.sin6_port = htons(PMML_NETWORK_SERVICE);
-		/* set the flowinfo */
-		dst.sa6.sin6_flowinfo = 0;
 	}
 
 	/* initialise the main loop */
@@ -244,14 +147,14 @@ main(int argc, char *argv[])
 		memcpy(buf + 10 + z + 2, msg, (uint8_t)msz);
 		z = 10 + z + 2 + msz;
 
-		if (sendto(s, buf, z, 0, &dst.sa, sizeof(dst)) < 0) {
+		if (pmml_send(s, buf, z, 0) < 0) {
 			perror("cannot publish");
 			res = 1;
 		}
 	}
 
 	/* and off */
-	close(s);
+	pmml_close(s);
 
 	/* destroy the default evloop */
 	ev_default_destroy();

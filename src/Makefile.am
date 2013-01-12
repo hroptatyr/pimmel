@@ -25,6 +25,7 @@ pimmel_noti_CPPFLAGS = $(AM_CPPFLAGS)
 pimmel_noti_CPPFLAGS += $(libev_CFLAGS)
 pimmel_noti_LDFLAGS = $(AM_LDFLAGS)
 pimmel_noti_LDFLAGS += $(libev_LIBS)
+pimmel_noti_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-noti-clo.c pimmel-noti-clo.h
 
 bin_PROGRAMS += pimmel-wait
