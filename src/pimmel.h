@@ -37,6 +37,8 @@
 #if !defined INCLUDED_pimmel_h_
 #define INCLUDED_pimmel_h_
 
+#include <stdarg.h>
+
 #if defined __cplusplus
 extern "C" {
 # if defined __GNUC__
@@ -46,7 +48,31 @@ extern "C" {
 # endif
 #endif /* __cplusplus */
 
+#define PMML_NETWORK_SERVICE	7665/*PMML on the phone*/
+/* http://www.iana.org/assignments/ipv6-multicast-addresses/ lists us
+ * as ff0x:0:0:0:0:0:0:134 */
+/* node-local */
+#define PMML_MCAST6_NODE_LOCAL	"ff01::134"
+/* link-local */
+#define PMML_MCAST6_LINK_LOCAL	"ff02::134"
+/* site-local */
+#define PMML_MCAST6_SITE_LOCAL	"ff05::134"
 
+/**
+ * Socket flags, can be |'d. */
+enum {
+	PMML_FL_NONE,
+	PMML_FL_PUB,
+	PMML_FL_SUB,
+};
+
+/**
+ * Return a socket set up for PUB'ing or SUB'ing, according to FLAGS. */
+extern int pmml_socket(int flags, ...);
+
+/**
+ * Close a socket and free associated resources. */
+extern int pmml_close(int sock);
 
 #if defined __cplusplus
 }
