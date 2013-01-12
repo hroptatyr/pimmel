@@ -13,12 +13,19 @@ CLEANFILES =
 EXTRA_DIST = $(BUILT_SOURCES)
 
 
+include_HEADERS = pimmel.h
+noinst_HEADERS += ud-sock.h
+
+lib_LTLIBRARIES += libpimmel.la
+libpimmel_la_SOURCES = pimmel.c
+
 bin_PROGRAMS += pimmel-noti
 pimmel_noti_SOURCES = pimmel-noti.c pimmel-noti-clo.ggo
 pimmel_noti_CPPFLAGS = $(AM_CPPFLAGS)
 pimmel_noti_CPPFLAGS += $(libev_CFLAGS)
 pimmel_noti_LDFLAGS = $(AM_LDFLAGS)
 pimmel_noti_LDFLAGS += $(libev_LIBS)
+pimmel_noti_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-noti-clo.c pimmel-noti-clo.h
 
 bin_PROGRAMS += pimmel-wait
@@ -27,6 +34,7 @@ pimmel_wait_CPPFLAGS = $(AM_CPPFLAGS)
 pimmel_wait_CPPFLAGS += $(libev_CFLAGS)
 pimmel_wait_LDFLAGS = $(AM_LDFLAGS)
 pimmel_wait_LDFLAGS += $(libev_LIBS)
+pimmel_wait_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-wait-clo.c pimmel-wait-clo.h
 
 
