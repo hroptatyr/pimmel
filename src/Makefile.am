@@ -33,6 +33,7 @@ pimmel_wait_CPPFLAGS = $(AM_CPPFLAGS)
 pimmel_wait_CPPFLAGS += $(libev_CFLAGS)
 pimmel_wait_LDFLAGS = $(AM_LDFLAGS)
 pimmel_wait_LDFLAGS += $(libev_LIBS)
+pimmel_wait_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-wait-clo.c pimmel-wait-clo.h
 
 
