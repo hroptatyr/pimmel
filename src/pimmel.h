@@ -37,8 +37,10 @@
 #if !defined INCLUDED_pimmel_h_
 #define INCLUDED_pimmel_h_
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <sys/types.h>
 
 #if defined __cplusplus
 extern "C" {
