@@ -78,9 +78,9 @@ static union ud_sockaddr_u dst = {0};
 union __chn_u {
 	struct {
 		uint8_t len;
-		char str[];
+		char str[0];
 	};
-	char c[];
+	char c[0];
 };
 
 struct sockasso_s {
