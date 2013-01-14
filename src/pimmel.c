@@ -92,6 +92,7 @@ struct sockasso_s {
 };
 
 static size_t nsockasso;
+static size_t ref_sockasso;
 static struct sockasso_s *sockasso;
 
 
@@ -119,7 +120,8 @@ make_sockasso(int s)
 	/* otherwise try and find a free slot */
 	for (size_t i = 0; i < nsockasso; i++) {
 		if (sockasso[i].s == 0U) {
-			return sockasso + i;
+			sa = sockasso + i;
+			goto out;
 		}
 	}
 	/* otherwise the array might not be large enough */
@@ -129,8 +131,11 @@ make_sockasso(int s)
 		sockasso = realloc(sockasso, nu * sizeof(*sockasso));
 		memset(sockasso + ol, 0, (nu - ol) * sizeof(*sockasso));
 		sockasso[ol].s = s;
-		return sockasso + ol;
+		sa = sockasso + ol;
 	}
+out:
+	ref_sockasso++;
+	return sa;
 }
 
 static void
@@ -400,6 +405,13 @@ pmml_close(int s)
 		if ((sa = find_sockasso(s)) != NULL) {
 			/* free asso data */
 			free_sockasso(sa);
+			ref_sockasso--;
+		}
+
+		if (ref_sockasso == 0UL && sockasso != NULL) {
+			/* last socket close */
+			free(sockasso);
+			sockasso = NULL;
 		}
 	}
 	return close(s);
