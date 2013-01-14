@@ -441,6 +441,9 @@ struct zmtp_str_s {
 static size_t
 shove_string(char *restrict tgt, size_t tsz, struct zmtp_str_s s)
 {
+	if (LIKELY(s.s != NULL) && UNLIKELY(s.z == 0UL)) {
+		s.z = strlen(s.s);
+	}
 	if (LIKELY((uint8_t)s.z + 1UL < tsz)) {
 		if (LIKELY((*tgt++ = (uint8_t)s.z))) {
 			memcpy(tgt, s.s, (uint8_t)s.z);
