@@ -129,15 +129,11 @@ main(int argc, char *argv[])
 	{
 		const char *chn = argi->inputs[0];
 		const char *msg = argi->inputs[1];
-		struct pmml_chnmsg_s chnmsg = {
-			.chnz = strlen(chn),
-			.chan = chn,
-			.flags = 0U,
-			.msz = strlen(msg),
-			.msg = msg,
-		};
 
-		if (pmml_noti(s, &chnmsg) < 0) {
+		if (pmml_noti(s, &(struct pmml_chnmsg_s){
+				.chan = chn,
+				.flags = 0U,
+				.msg = msg}) < 0) {
 			perror("cannot publish");
 			res = 1;
 		}
