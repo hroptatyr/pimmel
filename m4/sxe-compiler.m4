@@ -1,6 +1,6 @@
 dnl compiler.m4 --- compiler magic
 dnl
-dnl Copyright (C) 2005-2008, 2012 Sebastian Freundt
+dnl Copyright (C) 2005-2013 Sebastian Freundt
 dnl Copyright (c) 2005 Steven G. Johnson
 dnl Copyright (c) 2005 Matteo Frigo
 dnl
@@ -152,8 +152,19 @@ AC_DEFUN([SXE_WARNFLAGS], [dnl
 		warnflags="$warnflags -Wmissing-declarations"])
 	SXE_CHECK_COMPILER_FLAGS([-Wmissing-prototypes], [
 		warnflags="$warnflags -Wmissing-prototypes"])
-	SXE_CHECK_COMPILER_FLAGS([-Winline], [
-		warnflags="$warnflags -Winline"])
+
+	## gcc can't practically inline anything, so exclude this
+	case "${CC}" in
+	dnl (
+	*"gcc"*)
+		;;
+	dnl (
+	*)
+		SXE_CHECK_COMPILER_FLAGS([-Winline], [
+			warnflags="$warnflags -Winline"])
+		;;
+	esac
+
 	SXE_CHECK_COMPILER_FLAGS([-Wbad-function-cast], [
 		warnflags="$warnflags -Wbad-function-cast"])
 	SXE_CHECK_COMPILER_FLAGS([-Wcast-qual], [
@@ -162,8 +173,11 @@ AC_DEFUN([SXE_WARNFLAGS], [dnl
 		warnflags="$warnflags -Wcast-align"])
 
 	## warn about incomplete switches
-	SXE_CHECK_COMPILER_FLAGS([-Wswitch-default], [
-		warnflags="$warnflags -Wswitch-default"])
+	## for gcc, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=50422
+	## we used to have -Wswitch-default and -Wswitch-enum but that
+	## set gcc off quite badly in the nested switch case
+	SXE_CHECK_COMPILER_FLAGS([-Wswitch], [
+		warnflags="$warnflags -Wswitch"])
 
 	SXE_CHECK_COMPILER_FLAGS([-Wunused-function], [
 		warnflags="$warnflags -Wunused-function"])
@@ -192,6 +206,9 @@ AC_DEFUN([SXE_WARNFLAGS], [dnl
 		warnflags="$warnflags -Wreorder"])
 	SXE_CHECK_COMPILER_FLAGS([-Wdeprecated], [
 		warnflags="$warnflags -Wdeprecated"])
+
+	SXE_CHECK_COMPILER_FLAGS([-Wparentheses], [
+		warnflags="${warnflags} -Wparentheses"])
 
 	## icc specific
 	SXE_CHECK_COMPILER_FLAGS([-Wcheck], [
