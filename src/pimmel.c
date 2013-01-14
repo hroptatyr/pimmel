@@ -438,12 +438,15 @@ struct zmtp_str_s {
 	const char *s;
 };
 
+#define ZMTP_STR(a, b)					\
+	{						\
+		.z = a ? a : (b ? strlen(b) : 0UL),	\
+		.s = b,					\
+	}
+
 static size_t
 shove_string(char *restrict tgt, size_t tsz, struct zmtp_str_s s)
 {
-	if (LIKELY(s.s != NULL) && UNLIKELY(s.z == 0UL)) {
-		s.z = strlen(s.s);
-	}
 	if (LIKELY((uint8_t)s.z + 1UL < tsz)) {
 		if (LIKELY((*tgt++ = (uint8_t)s.z))) {
 			memcpy(tgt, s.s, (uint8_t)s.z);
@@ -473,8 +476,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 		if (UNLIKELY(msg->flags & PMML_CHNMSG_HAS_IDN)) {
 			const struct pmml_chnmsg_idn_s *idn = (const void*)msg;
 
-			s.z = idn->idz;
-			s.s = idn->idn;
+			s = (struct zmtp_str_s)ZMTP_STR(idn->idz, idn->idn);
 		}
 
 		/* copy length and beef of idn */
@@ -484,10 +486,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 	/* chuck a more-short now */
 	*p++ = '\x01';
 	{
-		struct zmtp_str_s s = {
-			.z = msg->chnz,
-			.s = msg->chan,
-		};
+		struct zmtp_str_s s = ZMTP_STR(msg->chnz, msg->chan);
 
 		p += shove_string(p, tsz - (p - tgt), s);
 	}
@@ -495,10 +494,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 	/* final-short now, we just assume it's a short message anyway */
 	*p++ = '\x00';
 	{
-		struct zmtp_str_s s = {
-			.z = msg->msz,
-			.s = msg->msg,
-		};
+		struct zmtp_str_s s = ZMTP_STR(msg->msz, msg->msg);
 
 		p += shove_string(p, tsz - (p - tgt), s);
 	}
