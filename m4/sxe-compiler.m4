@@ -1,6 +1,6 @@
 dnl compiler.m4 --- compiler magic
 dnl
-dnl Copyright (C) 2005-2008, 2012 Sebastian Freundt
+dnl Copyright (C) 2005-2013 Sebastian Freundt
 dnl Copyright (c) 2005 Steven G. Johnson
 dnl Copyright (c) 2005 Matteo Frigo
 dnl
@@ -152,8 +152,19 @@ AC_DEFUN([SXE_WARNFLAGS], [dnl
 		warnflags="$warnflags -Wmissing-declarations"])
 	SXE_CHECK_COMPILER_FLAGS([-Wmissing-prototypes], [
 		warnflags="$warnflags -Wmissing-prototypes"])
-	SXE_CHECK_COMPILER_FLAGS([-Winline], [
-		warnflags="$warnflags -Winline"])
+
+	## gcc can't practically inline anything, so exclude this
+	case "${CC}" in
+	dnl (
+	*"gcc"*)
+		;;
+	dnl (
+	*)
+		SXE_CHECK_COMPILER_FLAGS([-Winline], [
+			warnflags="$warnflags -Winline"])
+		;;
+	esac
+
 	SXE_CHECK_COMPILER_FLAGS([-Wbad-function-cast], [
 		warnflags="$warnflags -Wbad-function-cast"])
 	SXE_CHECK_COMPILER_FLAGS([-Wcast-qual], [
@@ -162,8 +173,11 @@ AC_DEFUN([SXE_WARNFLAGS], [dnl
 		warnflags="$warnflags -Wcast-align"])
 
 	## warn about incomplete switches
-	SXE_CHECK_COMPILER_FLAGS([-Wswitch-default], [
-		warnflags="$warnflags -Wswitch-default"])
+	## for gcc, see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=50422
+	## we used to have -Wswitch-default and -Wswitch-enum but that
+	## set gcc off quite badly in the nested switch case
+	SXE_CHECK_COMPILER_FLAGS([-Wswitch], [
+		warnflags="$warnflags -Wswitch"])
 
 	SXE_CHECK_COMPILER_FLAGS([-Wunused-function], [
 		warnflags="$warnflags -Wunused-function"])
@@ -192,6 +206,9 @@ AC_DEFUN([SXE_WARNFLAGS], [dnl
 		warnflags="$warnflags -Wreorder"])
 	SXE_CHECK_COMPILER_FLAGS([-Wdeprecated], [
 		warnflags="$warnflags -Wdeprecated"])
+
+	SXE_CHECK_COMPILER_FLAGS([-Wparentheses], [
+		warnflags="${warnflags} -Wparentheses"])
 
 	## icc specific
 	SXE_CHECK_COMPILER_FLAGS([-Wcheck], [
@@ -226,16 +243,40 @@ AC_DEFUN([SXE_OPTIFLAGS], [dnl
 ])dnl SXE_OPTIFLAGS
 
 AC_DEFUN([SXE_FEATFLAGS], [dnl
-	## we use libtool, so ...
-	XFLAG=
-	XCCFLAG="-XCClinker"
 	## default flags for needed features
+	AC_REQUIRE([SXE_CHECK_COMPILER_XFLAG])
+	XCCFLAG="${XFLAG}"
+
+	## recent gentoos went ballistic again, they compile PIE gcc's
+	## but there's no way to turn that misconduct off ...
+	## however I've got one report about a working PIE build
+	## we'll just check for -nopie here, if it works, we turn it on
+	## (and hence PIE off) and hope bug 16 remains fixed
+	SXE_CHECK_COMPILER_FLAGS([-nopie],
+		[featflags="$featflags -nopie"])
+
+	## it's utterly helpful to get the sse2 unit up
+	SXE_CHECK_COMPILER_FLAGS([-msse2], [dnl
+		## sse2 is the cure
+		featflags="$featflags -msse2"], [dnl
+		## oh bugger
+		AC_DEFINE([FPMATH_NO_SSE], [1], [no sse2 support for floats])])
+
+	## icc and gcc related
+	## check if some stuff can be staticalised
+	## actually requires SXE_WARNFLAGS so warnings would be disabled
+	## that affect the outcome of the following tests
 	SXE_CHECK_COMPILER_FLAGS([-static-intel], [
-		cflags="${cflags} ${XFLAG} -static-intel"
-		ldflags="${ldflags} ${XCCFLAG} -static-intel"])
+		featflags="${featflags} -static-intel"
+		XCCLDFLAGS="${XCCLDFLAGS} \${XCCFLAG} -static-intel"], [:],
+		[${SXE_CFLAGS}])
 	SXE_CHECK_COMPILER_FLAGS([-static-libgcc], [
-		cflags="${cflags} ${XFLAG} -static-libgcc"
-		ldflags="${ldflags} ${XCCFLAG} -static-libgcc"])
+		featflags="${featflags} -static-libgcc"
+		XCCLDFLAGS="${XCCLDFLAGS} \${XCCFLAG} -static-libgcc"], [:],
+		[${SXE_CFLAGS}])
+
+	AC_SUBST([XCCLDFLAGS])
+	AC_SUBST([XCCFLAG])
 ])dnl SXE_FEATFLAGS
 
 
@@ -246,7 +287,7 @@ dnl SXE_CHECK_COMPILER_FLAGS([flag], [do-if-works], [do-if-not-works])
 	AC_MSG_CHECKING([whether _AC_LANG compiler accepts $1])
 
 	dnl Some hackery here since AC_CACHE_VAL can't handle a non-literal varname:
-	SXE_LANG_WERROR([push+on])
+	AC_LANG_WERROR([on])
 	AS_LITERAL_IF([$1], [
 		AC_CACHE_VAL(AS_TR_SH(sxe_cv_[]_AC_LANG_ABBREV[]_flags_$1), [
 			sxe_save_FLAGS=$[]_AC_LANG_PREFIX[]FLAGS
@@ -262,7 +303,7 @@ dnl SXE_CHECK_COMPILER_FLAGS([flag], [do-if-works], [do-if-not-works])
 			eval AS_TR_SH(sxe_cv_[]_AC_LANG_ABBREV[]_flags_$1)="no")
 		_AC_LANG_PREFIX[]FLAGS=$sxe_save_FLAGS])
 	eval sxe_check_compiler_flags=$AS_TR_SH(sxe_cv_[]_AC_LANG_ABBREV[]_flags_$1)
-	SXE_LANG_WERROR([pop])
+	AC_LANG_WERROR([off])
 
 	AC_MSG_RESULT([$sxe_check_compiler_flags])
 	if test "$sxe_check_compiler_flags" = "yes"; then
@@ -272,22 +313,36 @@ dnl SXE_CHECK_COMPILER_FLAGS([flag], [do-if-works], [do-if-not-works])
 	fi
 ])dnl SXE_CHECK_COMPILER_FLAGS
 
+AC_DEFUN([SXE_CHECK_COMPILER_XFLAG], [dnl
+	if test "${XFLAG}" = ""; then
+		SXE_CHECK_COMPILER_FLAGS([-XCClinker -foo], [XFLAG="-XCClinker"])
+	fi
+	if test "${XFLAG}" = ""; then
+		SXE_CHECK_COMPILER_FLAGS([-Xlinker -foo], [XFLAG="-Xlinker"])
+	fi
+
+	AC_SUBST([XFLAG])
+])dnl SXE_CHECK_COMPILER_XFLAG
+
 
 AC_DEFUN([SXE_CHECK_CFLAGS], [dnl
 	dnl #### This may need to be overhauled so that all of SXEMACS_CC's flags
 	dnl are handled separately, not just the xe_cflags_warning stuff.
 
 	## Use either command line flag, environment var, or autodetection
+	CFLAGS=""
 	SXE_DEBUGFLAGS
 	SXE_WARNFLAGS
 	SXE_OPTIFLAGS
+	SXE_CFLAGS="$SXE_CFLAGS $debugflags $optiflags $warnflags"
+
 	SXE_FEATFLAGS
-	SXE_CFLAGS="$debugflags $featflags $optiflags $warnflags ${cflags}"
+	SXE_CFLAGS="$SXE_CFLAGS $featflags"
 
 	## unset the werror flag again
-	SXE_LANG_WERROR([off])
+	AC_LANG_WERROR([off])
 
-	CFLAGS="$SXE_CFLAGS ${ac_cv_env_CFLAGS_value}"
+	CFLAGS="${SXE_CFLAGS} ${ac_cv_env_CFLAGS_value}"
 	AC_MSG_CHECKING([for preferred CFLAGS])
 	AC_MSG_RESULT([${CFLAGS}])
 
@@ -305,21 +360,17 @@ respectively
 		])
 ])dnl SXE_CHECK_CFLAGS
 
-AC_DEFUN([SXE_CHECK_LDFLAGS], [dnl
-	AC_REQUIRE([SXE_CHECK_CFLAGS])
-
-	## can't use them here
-	LDFLAGS="${ldflags} ${ac_cv_env_LDFLAGS_value}"
-	AC_MSG_CHECKING([for preferred LDFLAGS])
-	AC_MSG_RESULT([${LDFLAGS}])
-])dnl SXE_CHECK_LDFLAGS
-
 AC_DEFUN([SXE_CHECK_CC], [dnl
 dnl SXE_CHECK_CC([STANDARDS])
 dnl standards are flavours supported by the compiler chosen with AC_PROG_CC
 	pushdef([stds], m4_default([$1], [gnu11 c11 gnu99 c99]))
 
+	AC_REQUIRE([AC_CANONICAL_HOST])
+	AC_REQUIRE([AC_CANONICAL_BUILD])
+	AC_REQUIRE([AC_PROG_CPP])
 	AC_REQUIRE([AC_PROG_CC])
+
+	AC_HEADER_STDC
 
 	case "${CC}" in dnl (
 	*"-std="*)
@@ -347,6 +398,8 @@ dnl standards are flavours supported by the compiler chosen with AC_PROG_CC
 
 		## while we're at it, check for anon initialising too
 		SXE_CHECK_ANON_STRUCTS_INIT
+		## oh and sloppy sloppy init
+		SXE_CHECK_SLOPPY_STRUCTS_INIT
 		;;
 	esac
 
@@ -438,6 +491,48 @@ Whether c11 anon structs declaring works])
 	fi
 	AC_LANG_POP()
 ])dnl SXE_CHECK_ANON_STRUCTS_DECL
+
+AC_DEFUN([SXE_CHECK_SLOPPY_STRUCTS_INIT], [
+	AC_LANG_PUSH([C])
+
+	## backup our CFLAGS and unset it
+	save_CFLAGS="${CFLAGS}"
+	CFLAGS="-Werror"
+
+	SXE_CHECK_COMPILER_FLAGS([-Wmissing-field-initializers], [
+		CFLAGS="${CFLAGS} -Wmissing-field-initializers"])
+
+	AC_MSG_CHECKING([dnl
+whether C compiler can initialise structs and unions in a sloppy way])
+
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+struct __test_s {
+	int i;
+	int j;
+};
+	]], [[
+	struct __test_s tmp = {};
+	]])], [
+		sxe_cv_have_sloppy_structs_init="yes"
+	], [
+		sxe_cv_have_sloppy_structs_init="no"
+	])
+	AC_MSG_RESULT([${sxe_cv_have_sloppy_structs_init}])
+
+	## restore CFLAGS
+	CFLAGS="${save_CFLAGS}"
+
+	if test "${sxe_cv_have_sloppy_structs_init}" = "yes"; then
+		AC_DEFINE([HAVE_SLOPPY_STRUCTS_INIT], [1], [dnl
+Whether sloppy struct initialising works])
+		$1
+		:
+	else
+		$2
+		:
+	fi
+	AC_LANG_POP()
+])dnl SXE_CHECK_SLOPPY_STRUCTS_INIT
 
 
 dnl sxe-compiler.m4 ends here

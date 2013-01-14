@@ -37,7 +37,6 @@ AC_PROG_CC([icc gcc tcc cc])
 SXE_CHECK_CC([c11 c1x c99 gnu99])
 AC_C_BIGENDIAN
 SXE_CHECK_CFLAGS
-LT_INIT
 
 ## check for byteorder utils
 AC_CHECK_HEADERS([endian.h sys/endian.h byteorder.h byteswap.h])
@@ -68,6 +67,7 @@ SXE_CHECK_LIBEV
 dnl must come after all AC_LINK_IFELSE clauses
 ## check for the ldflags
 SXE_CHECK_LDFLAGS
+SXE_CHECK_LIBTOOL
 
 dnl -------------------------------------------------------------------------
 dnl final output

@@ -117,82 +117,33 @@ matchesp(const char *chn, size_t chz)
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
-	static const char hdr[] = "\xff" "8\x00\x7f" /*rev*/"\x01"
-		/*socktyp pub*/"\x01"
-		/*final short (implicit \nul) */;
+	struct pmml_chnmsg_s msg[1];
 	char buf[1280];
 	ssize_t nrd;
-	/* for channel inspection */
-	size_t chz;
-	const char *chn;
-	size_t msz;
-	const char *msg;
 
 	/* read it off the wire for inspection */
-	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= (ssize_t)sizeof(hdr) ||
-	    /* and see if they speak zmtp */
-	    memcmp(hdr, buf, sizeof(hdr))) {
+	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= 0) {
+		/* don't even bother */
+		return;
+	} else if (UNLIKELY((msg->flags = 0U, pmml_chck(msg, buf, nrd)) < 0)) {
 		/* nope */
+		PMML_DEBUG("chck() came back unsuccessful\n");
 		return;
 	}
-	{
-		const char *ep = buf + nrd;;
-		const char *p = buf + sizeof(hdr);
-		size_t idz;
 
-		/* *p should point to the length of the identity */
-		idz = *p++;
-		if (UNLIKELY((p += idz) >= ep)) {
-			return;
-		}
-
-		/* we now expect a more frame in *p */
-		if (*p++ != '\x01') {
-			return;
-		}
-
-		/* yay, we found the channel */
-		if ((chz = *p++) == 0U) {
-			/* don't want no, naught byte channels */
-			return;
-		}
-		/* keep a note about the channel */
-		chn = p;
-		/* skip to the body */
-		if (UNLIKELY((p += chz) >= ep)) {
-			return;
-		}
-		/* check if channel ends in / */
-		if (chn[chz - 1] == '/') {
-			--chz;
-		}
-
-		/* final short there? */
-		if (*p++ != '\x00') {
-			return;
-		}
-		/* yay, we found the message */
-		msz = *p++;
-		msg = p;
-		/* skip to message ending */
-		if (UNLIKELY((p += msz) > ep)) {
-			return;
-		}
-
-		/* finalise channel with \t and message with \n */
-		buf[chn - buf + chz] = '\t';
-		buf[msg - buf + msz] = '\n';
-	}
-
-	if (!matchesp(chn, chz)) {
+	if (!matchesp(msg->chan, msg->chnz)) {
 		/* no match */
 		PMML_DEBUG("chan no matchee\n");
 		return;
 	}
 
+	/* otherwise finalise channel with \t and message with \n */
+	buf[msg->chan - buf + msg->chnz] = '\t';
+	buf[msg->msg - buf + msg->msz] = '\n';
+
 	/* FANTASTIC, print the message and unloop */
-	write(STDOUT_FILENO, chn, chz + 1);
-	write(STDOUT_FILENO, msg, msz + 1);
+	write(STDOUT_FILENO, msg->chan, msg->chnz + 1);
+	write(STDOUT_FILENO, msg->msg, msg->msz + 1);
 	ev_unloop(EV_A_ EVUNLOOP_ALL);
 	return;
 }

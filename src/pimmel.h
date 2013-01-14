@@ -67,6 +67,30 @@ enum {
 	PMML_FL_SUB,
 };
 
+struct pmml_chnmsg_s {
+	/** bitset of flags */
+	uint32_t flags;
+	/** number of bytes the channel string occupies */
+	size_t chnz;
+	/** channel to send to, \nul terminated */
+	const char *chan;
+	/** message size in bytes */
+	size_t msz;
+	/** message */
+	const char *msg;
+};
+
+/** like pmml_chnmsg_s but with identity info attached */
+struct pmml_chnmsg_idn_s {
+	struct pmml_chnmsg_s chnmsg;
+	/** length of identity IDN in bytes */
+	size_t idz;
+	/** identity string */
+	const char *idn;
+};
+
+
+/* first up socket creation and deletion */
 /**
  * Return a socket set up for PUB'ing or SUB'ing, according to FLAGS. */
 extern int pmml_socket(int flags, ...);
@@ -75,9 +99,28 @@ extern int pmml_socket(int flags, ...);
  * Close a socket and free associated resources. */
 extern int pmml_close(int sock);
 
+/* next up packing/unpacking messages */
+/**
+ * Produce wire-representation of MSG in provided buffer TGT of size TSZ.
+ * If successful return the number of bytes on the wire, or -1 otherwise. */
+extern ssize_t
+pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg);
+
+/**
+ * Check BUF (of size BSZ bytes) for channel notifications. */
+extern int
+pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz);
+
+/* finally sending and receiving */
 /**
  * Like `send()' for pimmel sockets. */
 extern ssize_t pmml_send(int s, const void *buf, size_t bsz, int flags);
+
+extern ssize_t pmml_recv();
+
+/* higher level, packing+sending receiving+unpacking in one go */
+extern int pmml_noti();
+extern int pmml_wait();
 
 #if defined __cplusplus
 }

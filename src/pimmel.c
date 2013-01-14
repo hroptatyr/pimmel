@@ -37,6 +37,8 @@
 #if defined HAVE_CONFIG_H
 # include "config.h"
 #endif	/* HAVE_CONFIG_H */
+#include <stdint.h>
+#include <string.h>
 #if defined HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
 #endif	/* HAVE_SYS_SOCKET_H */
@@ -318,6 +320,176 @@ ssize_t
 pmml_send(int s, const void *b, size_t z, int flags)
 {
 	return sendto(s, b, z, flags, &dst.sa, sizeof(dst));
+}
+
+
+/* packing */
+static const char hdr[] =
+	/* magic */"\xff" "8\x00\x7f"
+	/* rev */"\x01"
+	/* socktyp: pub */"\x01"
+	/* final-short is implicit */;
+
+#define PMML_CHNMSG_HAS_IDN	(4U)
+
+struct zmtp_str_s {
+	size_t z;
+	const char *s;
+};
+
+static size_t
+shove_string(char *restrict tgt, size_t tsz, struct zmtp_str_s s)
+{
+	if (LIKELY((uint8_t)s.z + 1UL < tsz)) {
+		if (LIKELY((*tgt++ = (uint8_t)s.z))) {
+			memcpy(tgt, s.s, (uint8_t)s.z);
+		}
+		return 1UL + (uint8_t)s.z;
+	}
+	return 0UL;
+}
+
+ssize_t
+pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
+{
+	char *restrict p = tgt;
+
+	/* go ahead with the header bit first */
+	memcpy(p, hdr, sizeof(hdr));
+	/* let p point to the end of the header */
+	p += sizeof(hdr);
+
+	/* bang the identity */
+	{
+		struct zmtp_str_s s = {
+			.z = 0,
+			.s = NULL,
+		};
+
+		if (UNLIKELY(msg->flags & PMML_CHNMSG_HAS_IDN)) {
+			const struct pmml_chnmsg_idn_s *idn = (const void*)msg;
+
+			s.z = idn->idz;
+			s.s = idn->idn;
+		}
+
+		/* copy length and beef of idn */
+		p += shove_string(p, tsz - (p - tgt), s);
+	}
+
+	/* chuck a more-short now */
+	*p++ = '\x01';
+	{
+		struct zmtp_str_s s = {
+			.z = msg->chnz,
+			.s = msg->chan,
+		};
+
+		p += shove_string(p, tsz - (p - tgt), s);
+	}
+
+	/* final-short now, we just assume it's a short message anyway */
+	*p++ = '\x00';
+	{
+		struct zmtp_str_s s = {
+			.z = msg->msz,
+			.s = msg->msg,
+		};
+
+		p += shove_string(p, tsz - (p - tgt), s);
+	}
+
+	/* return number of bytes on the wire */
+	return p - tgt;
+}
+
+/* unpacking */
+static struct zmtp_str_s
+snarf_string(const char **p)
+{
+	size_t z = *(*p)++;
+	const char *s = *p;
+
+	/* copy channel info */
+	*p += z;
+	return (struct zmtp_str_s){.z = z, .s = s};
+}
+
+int
+pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
+{
+	const char *p = buf;
+	const char *ep = buf + bsz;
+
+	/* see if the buffer is zmtp */
+	if (UNLIKELY(bsz < sizeof(hdr))) {
+		return -1;
+	} else if (UNLIKELY(memcmp(hdr, buf, sizeof(hdr)))) {
+		/* nope */
+		return -1;
+	}
+
+	/* have p pointing to the identity */
+	if (UNLIKELY((p += sizeof(hdr)) >= ep)) {
+		return -1;
+	}
+
+	/* check identity */
+	{
+		struct zmtp_str_s s = snarf_string(&p);
+
+		/* copy identity */
+		if (UNLIKELY(tgt->flags & PMML_CHNMSG_HAS_IDN)) {
+			struct pmml_chnmsg_idn_s *restrict idn = (void*)tgt;
+
+			idn->idz = s.z;
+			idn->idn = s.s;
+		}
+
+		/* ffw p */
+		if (UNLIKELY(p >= ep)) {
+			return -1;
+		}
+	}
+
+	/* we now expect a more frame in *p */
+	if (UNLIKELY(*p++ != '\x01')) {
+		return -1;
+	}
+
+	/* snarf off the channel info */
+	{
+		struct zmtp_str_s s = snarf_string(&p);
+
+		/* copy channel info */
+		tgt->chnz = s.z;
+		tgt->chan = s.s;
+
+		/* ffw p */
+		if (UNLIKELY(p >= ep)) {
+			return -1;
+		}
+	}
+
+	/* final short next? */
+	if (UNLIKELY(*p++ != '\x00')) {
+		return -1;
+	}
+
+	/* must be the actual message next */
+	{
+		struct zmtp_str_s s = snarf_string(&p);
+
+		/* copy message info */
+		tgt->msz = s.z;
+		tgt->msg = s.s;
+
+		/* ffw p */
+		if (UNLIKELY(p > ep)) {
+			return -1;
+		}
+	}
+	return 0;
 }
 
 /* pimmel.c ends here */
