@@ -95,7 +95,7 @@ struct pmml_chnmsg_idn_s {
 /* first up socket creation and deletion */
 /**
  * Return a socket set up for PUB'ing or SUB'ing, according to FLAGS. */
-extern int pmml_socket(int flags, ...);
+extern int pmml_socket(int flags);
 
 /**
  * Close a socket and free associated resources. */
