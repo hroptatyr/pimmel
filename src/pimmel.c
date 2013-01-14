@@ -134,13 +134,20 @@ make_sockasso(int s)
 }
 
 static void
-free_sockasso(struct sockasso_s *sa)
+free_subs(struct sockasso_s sa[static 1])
 {
 	if (sa->sub != NULL) {
 		sa->sub_nex = 0UL;
 		free(sa->sub);
 		sa->sub = NULL;
 	}
+	return;
+}
+
+static void
+free_sockasso(struct sockasso_s sa[static 1])
+{
+	free_subs(sa);
 	sa->s = 0;
 	return;
 }
@@ -577,7 +584,7 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 
 /* subscription handling, this should be specific to S. */
 static union __chn_u*
-__sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
+find_sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
 {
 /* like matchesp() but return a ptr and be strict about the matches */
 	union __chn_u *p;
@@ -612,7 +619,7 @@ matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
 	return false;
 }
 
-static size_t
+static inline __attribute__((pure)) size_t
 __nex64(size_t x)
 {
 	return ((x + 63U) / 64U) * 64U;
@@ -634,7 +641,7 @@ pmml_sub(int s, const char *chan, ...)
 	}
 
 	/* go through sub before we add CHAN */
-	if (UNLIKELY(__sub(sa, chan, chnz) != NULL)) {
+	if (UNLIKELY(find_sub(sa, chan, chnz) != NULL)) {
 		/* already subscribed */
 		return 0;
 	}
@@ -665,14 +672,36 @@ int
 pmml_uns(int s, ...)
 {
 	struct sockasso_s *sa;
+	size_t i = 0;
+	va_list vap;
 
-	/* unsubscribe all for now */
 	if ((sa = find_sockasso(s)) == NULL) {
-		return 0;
-	} else if (sa->sub != NULL) {
-		free(sa->sub);
-		sa->sub = NULL;
-		sa->sub_nex = 0UL;
+		/* do fuckall if there's no subs */
+		return -1;
+	}
+
+	va_start(vap, s);
+	for (const char *chn; (chn = va_arg(vap, const char*)); i++) {
+		size_t chz = strlen(chn);
+		union __chn_u *p = find_sub(sa, chn, chz);
+		union __chn_u *nex = (void*)(p->str + p->len);
+		size_t rest = sa->sub_nex - (nex->c - sa->sub->c);
+		size_t ol = __nex64(sa->sub_nex);
+		size_t nu;
+
+		memmove(p, nex, rest);
+		sa->sub_nex -= (char*)nex - (char*)p;
+		nu = __nex64(sa->sub_nex);
+
+		if (ol > nu) {
+			/* also shrink the string buffer */
+			sa->sub = realloc(sa->sub, nu);
+		}
+	}
+
+	/* unsubscribe all channels then */
+	if (i == 0) {
+		free_subs(sa);
 	}
 	return 0;
 }
