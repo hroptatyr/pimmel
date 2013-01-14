@@ -243,16 +243,40 @@ AC_DEFUN([SXE_OPTIFLAGS], [dnl
 ])dnl SXE_OPTIFLAGS
 
 AC_DEFUN([SXE_FEATFLAGS], [dnl
-	## we use libtool, so ...
-	XFLAG=
-	XCCFLAG="-XCClinker"
 	## default flags for needed features
+	AC_REQUIRE([SXE_CHECK_COMPILER_XFLAG])
+	XCCFLAG="${XFLAG}"
+
+	## recent gentoos went ballistic again, they compile PIE gcc's
+	## but there's no way to turn that misconduct off ...
+	## however I've got one report about a working PIE build
+	## we'll just check for -nopie here, if it works, we turn it on
+	## (and hence PIE off) and hope bug 16 remains fixed
+	SXE_CHECK_COMPILER_FLAGS([-nopie],
+		[featflags="$featflags -nopie"])
+
+	## it's utterly helpful to get the sse2 unit up
+	SXE_CHECK_COMPILER_FLAGS([-msse2], [dnl
+		## sse2 is the cure
+		featflags="$featflags -msse2"], [dnl
+		## oh bugger
+		AC_DEFINE([FPMATH_NO_SSE], [1], [no sse2 support for floats])])
+
+	## icc and gcc related
+	## check if some stuff can be staticalised
+	## actually requires SXE_WARNFLAGS so warnings would be disabled
+	## that affect the outcome of the following tests
 	SXE_CHECK_COMPILER_FLAGS([-static-intel], [
-		cflags="${cflags} ${XFLAG} -static-intel"
-		ldflags="${ldflags} ${XCCFLAG} -static-intel"])
+		featflags="${featflags} -static-intel"
+		XCCLDFLAGS="${XCCLDFLAGS} \${XCCFLAG} -static-intel"], [:],
+		[${SXE_CFLAGS}])
 	SXE_CHECK_COMPILER_FLAGS([-static-libgcc], [
-		cflags="${cflags} ${XFLAG} -static-libgcc"
-		ldflags="${ldflags} ${XCCFLAG} -static-libgcc"])
+		featflags="${featflags} -static-libgcc"
+		XCCLDFLAGS="${XCCLDFLAGS} \${XCCFLAG} -static-libgcc"], [:],
+		[${SXE_CFLAGS}])
+
+	AC_SUBST([XCCLDFLAGS])
+	AC_SUBST([XCCFLAG])
 ])dnl SXE_FEATFLAGS
 
 
