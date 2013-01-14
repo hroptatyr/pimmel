@@ -709,6 +709,7 @@ pmml_uns(int s, ...)
 			sa->sub = realloc(sa->sub, nu);
 		}
 	}
+	va_end(vap);
 
 	/* unsubscribe all channels then */
 	if (i == 0) {
