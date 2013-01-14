@@ -364,7 +364,7 @@ mc6_unset_sub(int s)
 
 /* public funs */
 int
-pmml_socket(int fl, ...)
+pmml_socket(int fl)
 {
 	int s;
 
