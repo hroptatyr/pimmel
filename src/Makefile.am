@@ -15,6 +15,7 @@ EXTRA_DIST = $(BUILT_SOURCES)
 
 include_HEADERS = pimmel.h
 noinst_HEADERS += ud-sock.h
+noinst_HEADERS += nifty.h
 
 lib_LTLIBRARIES += libpimmel.la
 libpimmel_la_SOURCES = pimmel.c
