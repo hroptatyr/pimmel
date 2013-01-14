@@ -38,6 +38,7 @@
 # include "config.h"
 #endif	/* HAVE_CONFIG_H */
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #if defined HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
@@ -72,6 +73,77 @@ static struct ipv6_mreq ALGN16(mreq6_nolo);
 static struct ipv6_mreq ALGN16(mreq6_silo);
 static struct ipv6_mreq ALGN16(mreq6_lilo);
 static union ud_sockaddr_u dst = {0};
+
+/* stuff we want to associate with sockets */
+union __chn_u {
+	struct {
+		uint8_t len;
+		char str[];
+	};
+	char c[];
+};
+
+struct sockasso_s {
+	int s;
+	unsigned int fl;
+	/* alloc size of sub */
+	size_t sub_nex;
+	union __chn_u *sub;
+};
+
+static size_t nsockasso;
+static struct sockasso_s *sockasso;
+
+
+/* sockasso */
+static struct sockasso_s*
+find_sockasso(int s)
+{
+	for (size_t i = 0; i < nsockasso; i++) {
+		if (sockasso[i].s == s) {
+			return sockasso + i;
+		}
+	}
+	return NULL;
+}
+
+static struct sockasso_s*
+make_sockasso(int s)
+{
+	/* try and find the socket first */
+	struct sockasso_s *sa;
+
+	if ((sa = find_sockasso(s)) != NULL) {
+		return sa;
+	}
+	/* otherwise try and find a free slot */
+	for (size_t i = 0; i < nsockasso; i++) {
+		if (sockasso[i].s == 0U) {
+			return sockasso + i;
+		}
+	}
+	/* otherwise the array might not be large enough */
+	{
+		size_t ol = nsockasso;
+		size_t nu = nsockasso += 4;
+		sockasso = realloc(sockasso, nu * sizeof(*sockasso));
+		memset(sockasso + ol, 0, (nu - ol) * sizeof(*sockasso));
+		sockasso[ol].s = s;
+		return sockasso + ol;
+	}
+}
+
+static void
+free_sockasso(struct sockasso_s *sa)
+{
+	if (sa->sub != NULL) {
+		sa->sub_nex = 0UL;
+		free(sa->sub);
+		sa->sub = NULL;
+	}
+	sa->s = 0;
+	return;
+}
 
 
 /* just some more socket helpers */
@@ -313,6 +385,16 @@ pmml_close(int s)
 {
 	mc6_unset_pub(s);
 	mc6_unset_sub(s);
+
+	/* see if we've got a map entry */
+	{
+		struct sockasso_s *sa;
+
+		if ((sa = find_sockasso(s)) != NULL) {
+			/* free asso data */
+			free_sockasso(sa);
+		}
+	}
 	return close(s);
 }
 
@@ -488,6 +570,156 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 		if (UNLIKELY(p > ep)) {
 			return -1;
 		}
+	}
+	return 0;
+}
+
+
+/* subscription handling, this should be specific to S. */
+static union __chn_u*
+__sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
+{
+/* like matchesp() but return a ptr and be strict about the matches */
+	union __chn_u *p;
+	const union __chn_u *ep;
+
+	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
+	     p < ep; p = (void*)(p->c + 1 + p->len)) {
+		if (p->len == chz && memcmp(p->str, chn, chz) == 0) {
+			/* found him */
+			return p;
+		}
+	}
+	return NULL;
+}
+
+static bool
+matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
+{
+/* check if the channel we monitor is a superdirectory of CHN */
+	union __chn_u *p;
+	const union __chn_u *ep;
+
+	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
+	     p < ep; p = (void*)(p->c + 1 + p->len)) {
+		if (p->len <= chz &&
+		    memcmp(p->str, chn, p->len) == 0 &&
+		    (p->len == chz || chn[p->len] == '/')) {
+			/* found him */
+			return true;
+		}
+	}
+	return false;
+}
+
+static size_t
+__nex64(size_t x)
+{
+	return ((x + 63U) / 64U) * 64U;
+}
+
+int
+pmml_sub(int s, const char *chan, ...)
+{
+/* we really should use tries, innit? */
+	struct sockasso_s *sa = make_sockasso(s);
+	size_t chnz = strlen(chan);
+
+	if (UNLIKELY(chnz < 1U || chan[0] != '/')) {
+		/* don't go for channels with no initial / */
+		return -1;
+	} else if (chan[chnz - 1] == '/') {
+		/* normalise chan, remove trailing / */
+		chnz--;
+	}
+
+	/* go through sub before we add CHAN */
+	if (UNLIKELY(__sub(sa, chan, chnz) != NULL)) {
+		/* already subscribed */
+		return 0;
+	}
+
+	/* check if p is large enough */
+	{
+		union __chn_u *p = (void*)(sa->sub->c + sa->sub_nex);
+		size_t ol = __nex64(sa->sub_nex);
+		size_t nu = __nex64(sa->sub_nex + chnz + 1U);
+
+		if (UNLIKELY(ol < nu)) {
+			sa->sub = realloc(sa->sub, nu);
+
+			/* recompute p in terms of new base ptr sa->sub */
+			p = (void*)(sa->sub->c + sa->sub_nex);
+		}
+
+		/* copy the subscription */
+		p->len = (uint8_t)chnz;
+		memcpy(p->str, chan, chnz);
+		/* up the index pointer */
+		sa->sub_nex += chnz + 1U;
+	}
+	return 0;
+}
+
+int
+pmml_uns(int s, ...)
+{
+	struct sockasso_s *sa;
+
+	/* unsubscribe all for now */
+	if ((sa = find_sockasso(s)) == NULL) {
+		return 0;
+	} else if (sa->sub != NULL) {
+		free(sa->sub);
+		sa->sub = NULL;
+		sa->sub_nex = 0UL;
+	}
+	return 0;
+}
+
+
+/* high level */
+int
+pmml_noti(int s, const struct pmml_chnmsg_s *msg)
+{
+	char buf[1280];
+	ssize_t z;
+	ssize_t nwr;
+
+	if ((z = pmml_pack(buf, sizeof(buf), msg)) < 0) {
+		return -1;
+	} else if ((nwr = pmml_send(s, buf, (size_t)z, 0)) < 0) {
+		return -1;
+	}
+	return 0;
+}
+
+int
+pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
+{
+	static char buf[1280];
+	struct pmml_chnmsg_idn_s __msg[1];
+	struct sockasso_s *sa;
+	ssize_t nrd;
+
+	if ((nrd = recv(s, buf, sizeof(buf), 0)) <= 0) {
+		/* don't even bother */
+		return -1;
+	} else if (UNLIKELY((__msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN,
+			     pmml_chck((void*)__msg, buf, nrd)) < 0)) {
+		/* can't check */
+		return -1;
+	} else if ((sa = find_sockasso(s)) == NULL) {
+		/* no subs */
+		return -1;
+	} else if (!matchesp(sa, __msg->chnmsg.chan, __msg->chnmsg.chnz)) {
+		return -1;
+	}
+	/* otherwise */
+	if (LIKELY(!(msg->flags & PMML_CHNMSG_HAS_IDN))) {
+		*msg = __msg->chnmsg;
+	} else {
+		*(struct pmml_chnmsg_idn_s*)msg = *__msg;
 	}
 	return 0;
 }
