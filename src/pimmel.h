@@ -116,8 +116,6 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz);
  * Like `send()' for pimmel sockets. */
 extern ssize_t pmml_send(int s, const void *buf, size_t bsz, int flags);
 
-extern ssize_t pmml_recv();
-
 /* higher level, packing+sending receiving+unpacking in one go */
 extern int pmml_noti();
 extern int pmml_wait();
