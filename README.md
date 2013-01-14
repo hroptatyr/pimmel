@@ -8,6 +8,9 @@ reliability promise.
 pimmel uses udp6 multicast to span ad-hoc topologies (on `ff0x::134`)
 and uses zmtp (0mq's wire protocol) to propagate messages.
 
++ github page: <https://github.com/hroptatyr/pimmel>
++ downloads: <https://bitbucket.org/hroptatyr/pimmel/downloads>
+
 shell clients
 -------------
 There's 2 little shell clients aboard at the moment.
