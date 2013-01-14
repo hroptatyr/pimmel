@@ -287,7 +287,7 @@ dnl SXE_CHECK_COMPILER_FLAGS([flag], [do-if-works], [do-if-not-works])
 	AC_MSG_CHECKING([whether _AC_LANG compiler accepts $1])
 
 	dnl Some hackery here since AC_CACHE_VAL can't handle a non-literal varname:
-	SXE_LANG_WERROR([push+on])
+	AC_LANG_WERROR([on])
 	AS_LITERAL_IF([$1], [
 		AC_CACHE_VAL(AS_TR_SH(sxe_cv_[]_AC_LANG_ABBREV[]_flags_$1), [
 			sxe_save_FLAGS=$[]_AC_LANG_PREFIX[]FLAGS
@@ -303,7 +303,7 @@ dnl SXE_CHECK_COMPILER_FLAGS([flag], [do-if-works], [do-if-not-works])
 			eval AS_TR_SH(sxe_cv_[]_AC_LANG_ABBREV[]_flags_$1)="no")
 		_AC_LANG_PREFIX[]FLAGS=$sxe_save_FLAGS])
 	eval sxe_check_compiler_flags=$AS_TR_SH(sxe_cv_[]_AC_LANG_ABBREV[]_flags_$1)
-	SXE_LANG_WERROR([pop])
+	AC_LANG_WERROR([off])
 
 	AC_MSG_RESULT([$sxe_check_compiler_flags])
 	if test "$sxe_check_compiler_flags" = "yes"; then
@@ -313,22 +313,36 @@ dnl SXE_CHECK_COMPILER_FLAGS([flag], [do-if-works], [do-if-not-works])
 	fi
 ])dnl SXE_CHECK_COMPILER_FLAGS
 
+AC_DEFUN([SXE_CHECK_COMPILER_XFLAG], [dnl
+	if test "${XFLAG}" = ""; then
+		SXE_CHECK_COMPILER_FLAGS([-XCClinker -foo], [XFLAG="-XCClinker"])
+	fi
+	if test "${XFLAG}" = ""; then
+		SXE_CHECK_COMPILER_FLAGS([-Xlinker -foo], [XFLAG="-Xlinker"])
+	fi
+
+	AC_SUBST([XFLAG])
+])dnl SXE_CHECK_COMPILER_XFLAG
+
 
 AC_DEFUN([SXE_CHECK_CFLAGS], [dnl
 	dnl #### This may need to be overhauled so that all of SXEMACS_CC's flags
 	dnl are handled separately, not just the xe_cflags_warning stuff.
 
 	## Use either command line flag, environment var, or autodetection
+	CFLAGS=""
 	SXE_DEBUGFLAGS
 	SXE_WARNFLAGS
 	SXE_OPTIFLAGS
+	SXE_CFLAGS="$SXE_CFLAGS $debugflags $optiflags $warnflags"
+
 	SXE_FEATFLAGS
-	SXE_CFLAGS="$debugflags $featflags $optiflags $warnflags ${cflags}"
+	SXE_CFLAGS="$SXE_CFLAGS $featflags"
 
 	## unset the werror flag again
-	SXE_LANG_WERROR([off])
+	AC_LANG_WERROR([off])
 
-	CFLAGS="$SXE_CFLAGS ${ac_cv_env_CFLAGS_value}"
+	CFLAGS="${SXE_CFLAGS} ${ac_cv_env_CFLAGS_value}"
 	AC_MSG_CHECKING([for preferred CFLAGS])
 	AC_MSG_RESULT([${CFLAGS}])
 
@@ -346,21 +360,17 @@ respectively
 		])
 ])dnl SXE_CHECK_CFLAGS
 
-AC_DEFUN([SXE_CHECK_LDFLAGS], [dnl
-	AC_REQUIRE([SXE_CHECK_CFLAGS])
-
-	## can't use them here
-	LDFLAGS="${ldflags} ${ac_cv_env_LDFLAGS_value}"
-	AC_MSG_CHECKING([for preferred LDFLAGS])
-	AC_MSG_RESULT([${LDFLAGS}])
-])dnl SXE_CHECK_LDFLAGS
-
 AC_DEFUN([SXE_CHECK_CC], [dnl
 dnl SXE_CHECK_CC([STANDARDS])
 dnl standards are flavours supported by the compiler chosen with AC_PROG_CC
 	pushdef([stds], m4_default([$1], [gnu11 c11 gnu99 c99]))
 
+	AC_REQUIRE([AC_CANONICAL_HOST])
+	AC_REQUIRE([AC_CANONICAL_BUILD])
+	AC_REQUIRE([AC_PROG_CPP])
 	AC_REQUIRE([AC_PROG_CC])
+
+	AC_HEADER_STDC
 
 	case "${CC}" in dnl (
 	*"-std="*)
@@ -388,6 +398,8 @@ dnl standards are flavours supported by the compiler chosen with AC_PROG_CC
 
 		## while we're at it, check for anon initialising too
 		SXE_CHECK_ANON_STRUCTS_INIT
+		## oh and sloppy sloppy init
+		SXE_CHECK_SLOPPY_STRUCTS_INIT
 		;;
 	esac
 
@@ -479,6 +491,48 @@ Whether c11 anon structs declaring works])
 	fi
 	AC_LANG_POP()
 ])dnl SXE_CHECK_ANON_STRUCTS_DECL
+
+AC_DEFUN([SXE_CHECK_SLOPPY_STRUCTS_INIT], [
+	AC_LANG_PUSH([C])
+
+	## backup our CFLAGS and unset it
+	save_CFLAGS="${CFLAGS}"
+	CFLAGS="-Werror"
+
+	SXE_CHECK_COMPILER_FLAGS([-Wmissing-field-initializers], [
+		CFLAGS="${CFLAGS} -Wmissing-field-initializers"])
+
+	AC_MSG_CHECKING([dnl
+whether C compiler can initialise structs and unions in a sloppy way])
+
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+struct __test_s {
+	int i;
+	int j;
+};
+	]], [[
+	struct __test_s tmp = {};
+	]])], [
+		sxe_cv_have_sloppy_structs_init="yes"
+	], [
+		sxe_cv_have_sloppy_structs_init="no"
+	])
+	AC_MSG_RESULT([${sxe_cv_have_sloppy_structs_init}])
+
+	## restore CFLAGS
+	CFLAGS="${save_CFLAGS}"
+
+	if test "${sxe_cv_have_sloppy_structs_init}" = "yes"; then
+		AC_DEFINE([HAVE_SLOPPY_STRUCTS_INIT], [1], [dnl
+Whether sloppy struct initialising works])
+		$1
+		:
+	else
+		$2
+		:
+	fi
+	AC_LANG_POP()
+])dnl SXE_CHECK_SLOPPY_STRUCTS_INIT
 
 
 dnl sxe-compiler.m4 ends here
