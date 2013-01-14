@@ -133,7 +133,7 @@ extern int pmml_sub(int s, const char *chan, ...);
 /**
  * Unsubscribe from all messages on S, or if const char *CHAN argument
  * is given unsubscribe from messages to channel CHAN only. */
-extern int pmml_uns(int s, ...);
+extern int pmml_uns(int s, /* const char *chan */...);
 
 #if defined __cplusplus
 }

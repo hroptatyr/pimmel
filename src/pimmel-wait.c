@@ -172,7 +172,7 @@ main(int argc, char *argv[])
 	ev_loop(EV_A_ 0);
 
 	/* unsubscribe from all channels */
-	pmml_uns(s);
+	pmml_uns(s, NULL);
 
 	ev_io_stop(EV_A_ sub);
 	pmml_close(s);
