@@ -136,13 +136,8 @@ main(int argc, char *argv[])
 			.msz = strlen(msg),
 			.msg = msg,
 		};
-		char buf[1280];
-		ssize_t z;
 
-		/* pack up the message */
-		z = pmml_pack(buf, sizeof(buf), &chnmsg);
-
-		if (pmml_send(s, buf, z, 0) < 0) {
+		if (pmml_noti(s, &chnmsg) < 0) {
 			perror("cannot publish");
 			res = 1;
 		}
