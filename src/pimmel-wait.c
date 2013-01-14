@@ -74,72 +74,20 @@
 #endif	/* DEBUG_FLAG */
 
 
-static const char *sub_flt;
-static size_t sub_flz;
-
-static void
-init_sub_flt(const char *fltstr)
-{
-	sub_flt = fltstr;
-	sub_flz = strlen(sub_flt);
-
-	if (LIKELY(sub_flz)) {
-		if (sub_flt[sub_flz - 1] == '/') {
-			sub_flz--;
-		}
-		if (sub_flt[0] != '/') {
-			sub_flz = 0UL;
-		}
-	}
-	return;
-}
-
-static void
-free_sub_flt(void)
-{
-	return;
-}
-
-static bool
-matchesp(const char *chn, size_t chz)
-{
-/* check if the channel we monitor is a superdirectory of CHN */
-	if (chz < sub_flz) {
-		/* can't be */
-		return false;
-	} else if (memcmp(chn, sub_flt, sub_flz)) {
-		/* nope */
-		return false;
-	}
-	return true;
-}
-
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
 	struct pmml_chnmsg_s msg[1];
-	char buf[1280];
-	ssize_t nrd;
 
 	/* read it off the wire for inspection */
-	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= 0) {
-		/* don't even bother */
-		return;
-	} else if (UNLIKELY((msg->flags = 0U, pmml_chck(msg, buf, nrd)) < 0)) {
-		/* nope */
-		PMML_DEBUG("chck() came back unsuccessful\n");
-		return;
-	}
-
-	if (!matchesp(msg->chan, msg->chnz)) {
-		/* no match */
-		PMML_DEBUG("chan no matchee\n");
+	if ((msg->flags = 0U, pmml_wait(w->fd, msg)) < 0) {
+		/* nope, doesn't match */
 		return;
 	}
 
 	/* otherwise finalise channel with \t and message with \n */
-	buf[msg->chan - buf + msg->chnz] = '\t';
-	buf[msg->msg - buf + msg->msz] = '\n';
+	strchr(msg->chan, *msg->chan)[msg->chnz] = '\t';
+	strchr(msg->msg, *msg->msg)[msg->msz] = '\n';
 
 	/* FANTASTIC, print the message and unloop */
 	write(STDOUT_FILENO, msg->chan, msg->chnz + 1);
@@ -215,15 +163,16 @@ main(int argc, char *argv[])
 	ev_io_init(sub, sub_cb, s, EV_READ);
 	ev_io_start(EV_A_ sub);
 
-	init_sub_flt(argi->inputs[0]);
-
+	/* subscribe to channel */
+	for (unsigned int i = 0; i < argi->inputs_num; i++) {
+		(void)pmml_sub(s, argi->inputs[i]);
+	}
 
 	/* now wait for events to arrive */
 	ev_loop(EV_A_ 0);
 
-
-	/* free sub filter */
-	free_sub_flt();
+	/* unsubscribe from all channels */
+	pmml_uns(s);
 
 	ev_io_stop(EV_A_ sub);
 	pmml_close(s);
