@@ -74,125 +74,24 @@
 #endif	/* DEBUG_FLAG */
 
 
-static const char *sub_flt;
-static size_t sub_flz;
-
-static void
-init_sub_flt(const char *fltstr)
-{
-	sub_flt = fltstr;
-	sub_flz = strlen(sub_flt);
-
-	if (LIKELY(sub_flz)) {
-		if (sub_flt[sub_flz - 1] == '/') {
-			sub_flz--;
-		}
-		if (sub_flt[0] != '/') {
-			sub_flz = 0UL;
-		}
-	}
-	return;
-}
-
-static void
-free_sub_flt(void)
-{
-	return;
-}
-
-static bool
-matchesp(const char *chn, size_t chz)
-{
-/* check if the channel we monitor is a superdirectory of CHN */
-	if (chz < sub_flz) {
-		/* can't be */
-		return false;
-	} else if (memcmp(chn, sub_flt, sub_flz)) {
-		/* nope */
-		return false;
-	}
-	return true;
-}
-
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
-	static const char hdr[] = "\xff" "8\x00\x7f" /*rev*/"\x01"
-		/*socktyp pub*/"\x01"
-		/*final short (implicit \nul) */;
-	char buf[1280];
-	ssize_t nrd;
-	/* for channel inspection */
-	size_t chz;
-	const char *chn;
-	size_t msz;
-	const char *msg;
+	struct pmml_chnmsg_s msg[1];
 
 	/* read it off the wire for inspection */
-	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= (ssize_t)sizeof(hdr) ||
-	    /* and see if they speak zmtp */
-	    memcmp(hdr, buf, sizeof(hdr))) {
-		/* nope */
+	if ((msg->flags = 0U, pmml_wait(w->fd, msg)) < 0) {
+		/* nope, doesn't match */
 		return;
 	}
-	{
-		const char *ep = buf + nrd;;
-		const char *p = buf + sizeof(hdr);
-		size_t idz;
 
-		/* *p should point to the length of the identity */
-		idz = *p++;
-		if (UNLIKELY((p += idz) >= ep)) {
-			return;
-		}
-
-		/* we now expect a more frame in *p */
-		if (*p++ != '\x01') {
-			return;
-		}
-
-		/* yay, we found the channel */
-		if ((chz = *p++) == 0U) {
-			/* don't want no, naught byte channels */
-			return;
-		}
-		/* keep a note about the channel */
-		chn = p;
-		/* skip to the body */
-		if (UNLIKELY((p += chz) >= ep)) {
-			return;
-		}
-		/* check if channel ends in / */
-		if (chn[chz - 1] == '/') {
-			--chz;
-		}
-
-		/* final short there? */
-		if (*p++ != '\x00') {
-			return;
-		}
-		/* yay, we found the message */
-		msz = *p++;
-		msg = p;
-		/* skip to message ending */
-		if (UNLIKELY((p += msz) > ep)) {
-			return;
-		}
-
-		/* finalise channel with \t and message with \n */
-		buf[chn - buf + chz] = '\t';
-		buf[msg - buf + msz] = '\n';
-	}
-
-	if (!matchesp(chn, chz)) {
-		/* no match */
-		PMML_DEBUG("chan no matchee\n");
-		return;
-	}
+	/* otherwise finalise channel with \t and message with \n */
+	strchr(msg->chan, *msg->chan)[msg->chnz] = '\t';
+	strchr(msg->msg, *msg->msg)[msg->msz] = '\n';
 
 	/* FANTASTIC, print the message and unloop */
-	write(STDOUT_FILENO, chn, chz + 1);
-	write(STDOUT_FILENO, msg, msz + 1);
+	write(STDOUT_FILENO, msg->chan, msg->chnz + 1);
+	write(STDOUT_FILENO, msg->msg, msg->msz + 1);
 	ev_unloop(EV_A_ EVUNLOOP_ALL);
 	return;
 }
@@ -264,15 +163,16 @@ main(int argc, char *argv[])
 	ev_io_init(sub, sub_cb, s, EV_READ);
 	ev_io_start(EV_A_ sub);
 
-	init_sub_flt(argi->inputs[0]);
-
+	/* subscribe to channel */
+	for (unsigned int i = 0; i < argi->inputs_num; i++) {
+		(void)pmml_sub(s, argi->inputs[i]);
+	}
 
 	/* now wait for events to arrive */
 	ev_loop(EV_A_ 0);
 
-
-	/* free sub filter */
-	free_sub_flt();
+	/* unsubscribe from all channels */
+	pmml_uns(s, NULL);
 
 	ev_io_stop(EV_A_ sub);
 	pmml_close(s);
