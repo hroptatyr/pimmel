@@ -18,6 +18,11 @@ noinst_HEADERS += ud-sock.h
 
 lib_LTLIBRARIES += libpimmel.la
 libpimmel_la_SOURCES = pimmel.c
+libpimmel_la_CPPFLAGS = $(AM_CPPFLAGS)
+libpimmel_la_CFLAGS = -fPIC
+libpimmel_la_LDFLAGS = $(AM_LDFLAGS)
+libpimmel_la_LDFLAGS += $(XCCLDFLAGS)
+libpimmel_la_LDFLAGS += -version-info 0:0:0
 
 bin_PROGRAMS += pimmel-noti
 pimmel_noti_SOURCES = pimmel-noti.c pimmel-noti-clo.ggo
