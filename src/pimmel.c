@@ -479,7 +479,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 		if (UNLIKELY(msg->flags & PMML_CHNMSG_HAS_IDN)) {
 			const struct pmml_chnmsg_idn_s *idn = (const void*)msg;
 
-			s = (struct zmtp_str_s)ZMTP_STR(idn->idz, idn->idn);
+			s = (struct zmtp_str_s){.z = idn->idz, .s = idn->idn};
 		}
 
 		/* copy length and beef of idn */
