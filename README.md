@@ -1,6 +1,8 @@
 pimmel
 ======
 
+[![Build Status](https://secure.travis-ci.org/hroptatyr/pimmel.png?branch=master)](http://travis-ci.org/hroptatyr/pimmel)
+
 pimmel is a simple pub-sub messaging library, much like [0mq][1] or
 [nanomsg][2], without all the transports they support and without the
 reliability promise.
