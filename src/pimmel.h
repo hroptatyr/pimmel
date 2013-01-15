@@ -69,6 +69,10 @@ enum {
 	PMML_SUB = 2U,
 };
 
+enum {
+	PMML_CHNMSG_HAS_IDN = 4U,
+};
+
 struct pmml_chnmsg_s {
 	/** bitset of flags */
 	uint32_t flags;

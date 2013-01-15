@@ -431,8 +431,6 @@ static const char hdr[] =
 	/* socktyp: pub */"\x01"
 	/* final-short is implicit */;
 
-#define PMML_CHNMSG_HAS_IDN	(4U)
-
 struct zmtp_str_s {
 	size_t z;
 	const char *s;
