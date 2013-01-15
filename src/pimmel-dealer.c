@@ -72,6 +72,7 @@
 # define MAYBE_UNUSED		UNUSED
 #else  /* !DEBUG_FLAG */
 # define assert(...)
+# define PMML_DEBUG(args...)
 # define MAYBE_UNUSED		UNUSED
 # define MAYBE_NOINLINE
 #endif	/* DEBUG_FLAG */
