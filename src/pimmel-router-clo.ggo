@@ -1,0 +1,14 @@
+args "--unamed-opts --no-handle-error --long-help -a pimmel_args_info -f pimmel_parser"
+package "pimmel-router"
+usage "pimmel-router [OPTION]... [CHANNEL]... PROTO://REMOTE:PORT"
+description "Subscribe to CHANNELs and publish to a remote dealer \
+at REMOTE:PORT using PROTO.
+
+Supported protocols:
+- udp  for udp forwarding (default)
+- tcp  for tcp forwarding.
+"
+
+option "daemonise" d
+	"Detach from tty and runs as daemon"
+	optional

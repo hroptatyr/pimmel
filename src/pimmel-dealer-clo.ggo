@@ -1,0 +1,13 @@
+args "--unamed-opts --no-handle-error --long-help -a pimmel_args_info -f pimmel_parser"
+package "pimmel-dealer"
+usage "pimmel-dealer [OPTION]... [CHANNEL]... PROTO://PORT"
+description "Fetch router messages on PORT and publish to pimmel network.
+
+Supported protocols:
+- udp  for udp forwarding (default)
+- tcp  for tcp forwarding.
+"
+
+option "daemonise" d
+	"Detach from tty and runs as daemon"
+	optional

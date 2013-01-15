@@ -53,6 +53,7 @@ AC_CHECK_HEADERS([sys/socket.h])
 AC_CHECK_HEADERS([netinet/in.h])
 AC_CHECK_HEADERS([netinet/tcp.h])
 AC_CHECK_HEADERS([arpa/inet.h])
+AC_CHECK_HEADERS([netdb.h])
 
 ## check for working c11 features
 SXE_CHECK_ANON_STRUCTS_DECL
