@@ -100,6 +100,9 @@ static struct sockasso_s *sockasso;
 static struct sockasso_s*
 find_sockasso(int s)
 {
+	if (UNLIKELY(sockasso == NULL)) {
+		return NULL;
+	}
 	for (size_t i = 0; i < nsockasso; i++) {
 		if (sockasso[i].s == s) {
 			return sockasso + i;
@@ -368,8 +371,8 @@ pmml_socket(int fl)
 {
 	int s;
 
-#define FL_SUBP(fl)	(fl & PMML_FL_SUB)
-#define FL_PUBP(fl)	(fl & PMML_FL_PUB)
+#define FL_SUBP(fl)	(fl & PMML_SUB)
+#define FL_PUBP(fl)	(fl & PMML_PUB)
 
 	if ((s = mc6_socket()) < 0) {
 		goto out;
@@ -430,8 +433,6 @@ static const char hdr[] =
 	/* rev */"\x01"
 	/* socktyp: pub */"\x01"
 	/* final-short is implicit */;
-
-#define PMML_CHNMSG_HAS_IDN	(4U)
 
 struct zmtp_str_s {
 	size_t z;

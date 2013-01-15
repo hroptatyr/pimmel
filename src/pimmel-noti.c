@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 		goto out;
 	}
 
-	if ((s = pmml_socket(PMML_FL_PUB)) < 0) {
+	if ((s = pmml_socket(PMML_PUB)) < 0) {
 		perror("cannot initialise pimmel socket");
 		res = 1;
 		goto out;
