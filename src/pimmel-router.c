@@ -63,6 +63,7 @@
 #include <pimmel.h>
 #include "nifty.h"
 #include "ud-sock.h"
+#include "daemonise.h"
 
 #if defined DEBUG_FLAG && !defined BENCHMARK
 # include <assert.h>
@@ -332,6 +333,10 @@ main(int argc, char *argv[])
 		res = 1;
 		goto out;
 	} else if (massage_conn(ctx, argi->inputs[argi->inputs_num - 1]) < 0) {
+		res = 1;
+		goto out;
+	} else if (argi->daemonise_given && detach() < 0) {
+		perror("daemonisation failed");
 		res = 1;
 		goto out;
 	}
