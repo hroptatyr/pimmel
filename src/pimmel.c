@@ -59,6 +59,7 @@
 
 #if defined DEBUG_FLAG && !defined BENCHMARK
 # include <assert.h>
+# include <stdio.h>
 # define PMML_DEBUG(args...)	fprintf(stderr, args)
 # define MAYBE_NOINLINE		__attribute__((noinline))
 # define MAYBE_UNUSED		UNUSED
