@@ -118,6 +118,10 @@ FAQ
    destination (like logging, financial tick data, or measurements from
    your weather station) use something else, [unserding][3] maybe.
 
+4. Will the API be stable?
+
+   No.  It will be simple but not necessarily stable.
+
   [1]: https://github.com/zeromq/libzmq
   [2]: https://github.com/250bpm/nanomsg
   [3]: https://github.com/hroptatyr/unserding
