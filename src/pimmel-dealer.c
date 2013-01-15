@@ -253,7 +253,7 @@ dlr_data_cb(EV_P_ ev_io *w, int UNUSED(revents))
 	if (LIKELY(pp > pck && ctx->dst > 0)) {
 		size_t npck = pp - pck;
 
-		(void)send(ctx->dst, pck, npck, 0);
+		(void)pmml_send(ctx->dst, pck, npck, 0);
 	}
 clo:
 	if (UNLIKELY(ctx->proto == PROTO_TCP)) {
