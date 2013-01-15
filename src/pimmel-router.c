@@ -187,9 +187,7 @@ pmml_router_socket(ctx_t ctx)
 	if (getaddrinfo(ctx->host, ctx->port, &hints, &aires) < 0) {
 		perror("cannot resolve remote address");
 		goto out;
-	}
-
-	if (UNLIKELY((s = try_connect(&aires)) < 0)) {
+	} else if (UNLIKELY((s = try_connect(&aires)) < 0)) {
 		perror("cannot connect to remote address");
 		goto out;
 	}
