@@ -59,11 +59,13 @@
 
 #if defined DEBUG_FLAG && !defined BENCHMARK
 # include <assert.h>
+# include <stdio.h>
 # define PMML_DEBUG(args...)	fprintf(stderr, args)
 # define MAYBE_NOINLINE		__attribute__((noinline))
 # define MAYBE_UNUSED		UNUSED
 #else  /* !DEBUG_FLAG */
 # define assert(...)
+# define PMML_DEBUG(args...)
 # define MAYBE_UNUSED		UNUSED
 # define MAYBE_NOINLINE
 #endif	/* DEBUG_FLAG */
@@ -477,7 +479,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 		if (UNLIKELY(msg->flags & PMML_CHNMSG_HAS_IDN)) {
 			const struct pmml_chnmsg_idn_s *idn = (const void*)msg;
 
-			s = (struct zmtp_str_s)ZMTP_STR(idn->idz, idn->idn);
+			s = (struct zmtp_str_s){.z = idn->idz, .s = idn->idn};
 		}
 
 		/* copy length and beef of idn */

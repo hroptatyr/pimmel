@@ -72,6 +72,7 @@
 # define MAYBE_UNUSED		UNUSED
 #else  /* !DEBUG_FLAG */
 # define assert(...)
+# define PMML_DEBUG(args...)
 # define MAYBE_UNUSED		UNUSED
 # define MAYBE_NOINLINE
 #endif	/* DEBUG_FLAG */
@@ -88,6 +89,9 @@ struct ctx_s {
 	} proto;
 	const char *host;
 	const char *port;
+
+	/* router identity of the form RTR_xxx */
+	uint32_t ident;
 };
 
 
@@ -137,6 +141,73 @@ massage_conn(ctx_t ctx, const char *conn)
 	/* mash it all up */
 	ctx->host = conn;
 	ctx->port = port;
+	return 0;
+}
+
+static uint32_t
+make_router_id(void)
+{
+	uint32_t res = 0U;
+	int s;
+
+	/* mangle buf and put hex repr into ctx->ident */
+	if ((s = open("/dev/urandom", O_RDONLY)) < 0) {
+
+	} else if (read(s, &res, sizeof(res)) < (ssize_t)sizeof(res)) {
+
+	} else {
+		close(s);
+	}
+	return res;
+}
+
+static uint32_t
+read_router_id(const char *s, size_t z)
+{
+	uint32_t res = 0U;
+
+	if (z != 12U) {
+		return 0U;
+	} else if (*s++ != 'R' || *s++ != 'T' || *s++ != 'R' || *s++ != '_') {
+		return 0U;
+	}
+	/* otherwise decipher the rest */
+	for (size_t i = 0; i < 8U; i++, s++) {
+		res <<= 4U;
+		switch (*s) {
+		case '0' ... '9':
+			res += *s - '0';
+			break;
+		case 'a' ... 'f':
+			res += *s - 'a' + 10;
+			break;
+		case 'A' ... 'F':
+			res += *s - 'A' + 10;
+			break;
+		default:
+			break;
+		}
+	}
+	return res;
+}
+
+static int
+bang_ident(char *restrict s, size_t z, uint32_t idn)
+{
+	if (z < 12U) {
+		return -1;
+	}
+
+	*s++ = 'R';
+	*s++ = 'T';
+	*s++ = 'R';
+	*s++ = '_';
+
+	s += 8U;
+	for (size_t i = 0; i < 8U; i++, idn >>= 4U) {
+		static char ch[] = "0123456789abcdef";
+		*--s = ch[idn & 0xf];
+	}
 	return 0;
 }
 
@@ -205,8 +276,16 @@ rtr_cb(EV_P_ ev_io *w, int UNUSED(revents))
 
 	PMML_DEBUG("rtr_cb\n");
 	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= 0) {
-		ctx->dst = -1;
-		ev_io_shut(EV_A_ w);
+		switch (ctx->proto) {
+		case PROTO_UDP:
+			break;
+		case PROTO_TCP:
+			ctx->dst = -1;
+			ev_io_shut(EV_A_ w);
+			break;
+		default:
+			abort();
+		}
 	}
 	return;
 }
@@ -238,8 +317,18 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 	for (ssize_t nch, npk;
 	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)msg, bp, nrd)) > 0);
 	     bp += nch, nrd -= nch, pp += npk, npp -= npk) {
-		/* repack */
-		if ((npk = pmml_pack(pp, npp, (void*)msg)) < 0) {
+		/* check identity */
+		uint32_t idn = read_router_id(msg->idn, msg->idz);
+		char ident[12];
+
+		/* repack if it's not a message already routed by us */
+		if ((ctx->ident & idn) == ctx->ident) {
+			/* it's us */
+			PMML_DEBUG("loop detected\n");
+			npk = 0U;
+		} else if ((bang_ident(ident, sizeof(ident), ctx->ident | idn),
+			    msg->idn = ident, msg->idz = sizeof(ident),
+			    npk = pmml_pack(pp, npp, (void*)msg)) < 0) {
 			npk = 0U;
 		}
 	}
@@ -337,6 +426,9 @@ main(int argc, char *argv[])
 		res = 1;
 		goto out;
 	}
+
+	/* fill in the rest of ctx */
+	ctx->ident = make_router_id();
 
 	/* initialise the main loop */
 	loop = ev_default_loop(EVFLAG_AUTO);
