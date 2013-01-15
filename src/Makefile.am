@@ -43,6 +43,15 @@ pimmel_wait_LDFLAGS += $(libev_LIBS)
 pimmel_wait_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-wait-clo.c pimmel-wait-clo.h
 
+bin_PROGRAMS += pimmel-router
+pimmel_router_SOURCES = pimmel-router.c pimmel-router-clo.ggo
+pimmel_router_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_router_CPPFLAGS += $(libev_CFLAGS)
+pimmel_router_LDFLAGS = $(AM_LDFLAGS) -static
+pimmel_router_LDFLAGS += $(libev_LIBS)
+pimmel_router_LDADD = libpimmel.la
+BUILT_SOURCES += pimmel-router-clo.c pimmel-router-clo.h
+
 
 ## our rule for gengetopt
 %.c %.h: %.ggo
