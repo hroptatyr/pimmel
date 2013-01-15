@@ -368,8 +368,8 @@ pmml_socket(int fl)
 {
 	int s;
 
-#define FL_SUBP(fl)	(fl & PMML_FL_SUB)
-#define FL_PUBP(fl)	(fl & PMML_FL_PUB)
+#define FL_SUBP(fl)	(fl & PMML_SUB)
+#define FL_PUBP(fl)	(fl & PMML_PUB)
 
 	if ((s = mc6_socket()) < 0) {
 		goto out;

@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 		goto out;
 	}
 
-	if ((s = pmml_socket(PMML_FL_SUB)) < 0) {
+	if ((s = pmml_socket(PMML_SUB)) < 0) {
 		perror("cannot initialise pimmel socket");
 		res = 1;
 		goto out;

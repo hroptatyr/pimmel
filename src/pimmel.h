@@ -64,9 +64,9 @@ extern "C" {
 /**
  * Socket flags, can be |'d. */
 enum {
-	PMML_FL_NONE,
-	PMML_FL_PUB,
-	PMML_FL_SUB,
+	PMML_NONE = 0U,
+	PMML_PUB = 1U,
+	PMML_SUB = 2U,
 };
 
 struct pmml_chnmsg_s {
