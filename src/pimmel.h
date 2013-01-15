@@ -104,12 +104,16 @@ extern int pmml_close(int sock);
 /* next up packing/unpacking messages */
 /**
  * Produce wire-representation of MSG in provided buffer TGT of size TSZ.
- * If successful return the number of bytes on the wire, or -1 otherwise. */
+ * If successful return the number of bytes on the wire, or -1 otherwise.
+ * This routine will operate regardless what has been subscribed to. */
 extern ssize_t
 pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg);
 
 /**
- * Check BUF (of size BSZ bytes) for channel notifications. */
+ * Check BUF (of size BSZ bytes) for channel notifications.
+ * Put a copy of the message in *TGT and return the number of bytes
+ * consumed from BUF.
+ * This routine will operate regardless what has been subscribed to. */
 extern ssize_t
 pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz);
 
