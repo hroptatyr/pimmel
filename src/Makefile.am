@@ -63,6 +63,15 @@ pimmel_dealer_LDFLAGS += $(libev_LIBS)
 pimmel_dealer_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-dealer-clo.c pimmel-dealer-clo.h
 
+bin_PROGRAMS += pimmel-moni
+pimmel_moni_SOURCES = pimmel-moni.c pimmel-moni-clo.ggo
+pimmel_moni_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_moni_CPPFLAGS += $(libev_CFLAGS)
+pimmel_moni_LDFLAGS = $(AM_LDFLAGS) -static
+pimmel_moni_LDFLAGS += $(libev_LIBS)
+pimmel_moni_LDADD = libpimmel.la
+BUILT_SOURCES += pimmel-moni-clo.c pimmel-moni-clo.h
+
 
 ## our rule for gengetopt
 %.c %.h: %.ggo

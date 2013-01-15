@@ -1,0 +1,5 @@
+args "--unamed-opts --no-handle-error --long-help -a pimmel_args_info -f pimmel_parser"
+package "pimmel-moni"
+usage "pimmel-wait [OPTION]..."
+description "Monitor all events on the local pimmel network."
+
