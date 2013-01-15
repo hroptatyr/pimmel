@@ -206,8 +206,16 @@ rtr_cb(EV_P_ ev_io *w, int UNUSED(revents))
 
 	PMML_DEBUG("rtr_cb\n");
 	if ((nrd = recv(w->fd, buf, sizeof(buf), 0)) <= 0) {
-		ctx->dst = -1;
-		ev_io_shut(EV_A_ w);
+		switch (ctx->proto) {
+		case PROTO_UDP:
+			break;
+		case PROTO_TCP:
+			ctx->dst = -1;
+			ev_io_shut(EV_A_ w);
+			break;
+		default:
+			abort();
+		}
 	}
 	return;
 }
