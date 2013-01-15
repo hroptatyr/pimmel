@@ -185,10 +185,8 @@ pmml_router_socket(ctx_t ctx)
         hints.ai_protocol = 0;
 
 	if (getaddrinfo(ctx->host, ctx->port, &hints, &aires) < 0) {
-		perror("cannot resolve remote address");
 		goto out;
 	} else if (UNLIKELY((s = try_connect(&aires)) < 0)) {
-		perror("cannot connect to remote address");
 		goto out;
 	}
 
@@ -271,6 +269,7 @@ chk_cb(EV_P_ ev_check *w, int rev)
 		last_reco = now;
 
 		if ((ctx->dst = pmml_router_socket(ctx)) < 0) {
+			perror("cannot obtain pimmel router socket");
 			return;
 		}
 
