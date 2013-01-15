@@ -53,6 +53,16 @@ pimmel_router_LDFLAGS += $(libev_LIBS)
 pimmel_router_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-router-clo.c pimmel-router-clo.h
 
+bin_PROGRAMS += pimmel-dealer
+pimmel_dealer_SOURCES = pimmel-dealer.c pimmel-dealer-clo.ggo
+pimmel_dealer_SOURCES += daemonise.c daemonise.h
+pimmel_dealer_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_dealer_CPPFLAGS += $(libev_CFLAGS)
+pimmel_dealer_LDFLAGS = $(AM_LDFLAGS) -static
+pimmel_dealer_LDFLAGS += $(libev_LIBS)
+pimmel_dealer_LDADD = libpimmel.la
+BUILT_SOURCES += pimmel-dealer-clo.c pimmel-dealer-clo.h
+
 
 ## our rule for gengetopt
 %.c %.h: %.ggo
