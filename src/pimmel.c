@@ -100,6 +100,9 @@ static struct sockasso_s *sockasso;
 static struct sockasso_s*
 find_sockasso(int s)
 {
+	if (UNLIKELY(sockasso == NULL)) {
+		return NULL;
+	}
 	for (size_t i = 0; i < nsockasso; i++) {
 		if (sockasso[i].s == s) {
 			return sockasso + i;
