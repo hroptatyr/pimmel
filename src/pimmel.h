@@ -110,7 +110,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg);
 
 /**
  * Check BUF (of size BSZ bytes) for channel notifications. */
-extern int
+extern ssize_t
 pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz);
 
 /* finally sending and receiving */

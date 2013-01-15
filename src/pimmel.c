@@ -515,7 +515,7 @@ snarf_string(const char **p)
 	return (struct zmtp_str_s){.z = z, .s = s};
 }
 
-int
+ssize_t
 pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 {
 	const char *p = buf;
@@ -589,7 +589,7 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 			return -1;
 		}
 	}
-	return 0;
+	return p - buf;
 }
 
 
