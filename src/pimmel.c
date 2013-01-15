@@ -59,11 +59,13 @@
 
 #if defined DEBUG_FLAG && !defined BENCHMARK
 # include <assert.h>
+# include <stdio.h>
 # define PMML_DEBUG(args...)	fprintf(stderr, args)
 # define MAYBE_NOINLINE		__attribute__((noinline))
 # define MAYBE_UNUSED		UNUSED
 #else  /* !DEBUG_FLAG */
 # define assert(...)
+# define PMML_DEBUG(args...)
 # define MAYBE_UNUSED		UNUSED
 # define MAYBE_NOINLINE
 #endif	/* DEBUG_FLAG */
@@ -78,9 +80,9 @@ static union ud_sockaddr_u dst = {0};
 union __chn_u {
 	struct {
 		uint8_t len;
-		char str[];
+		char str[0];
 	};
-	char c[];
+	char c[0];
 };
 
 struct sockasso_s {
@@ -100,6 +102,9 @@ static struct sockasso_s *sockasso;
 static struct sockasso_s*
 find_sockasso(int s)
 {
+	if (UNLIKELY(sockasso == NULL)) {
+		return NULL;
+	}
 	for (size_t i = 0; i < nsockasso; i++) {
 		if (sockasso[i].s == s) {
 			return sockasso + i;
@@ -364,12 +369,12 @@ mc6_unset_sub(int s)
 
 /* public funs */
 int
-pmml_socket(int fl, ...)
+pmml_socket(int fl)
 {
 	int s;
 
-#define FL_SUBP(fl)	(fl & PMML_FL_SUB)
-#define FL_PUBP(fl)	(fl & PMML_FL_PUB)
+#define FL_SUBP(fl)	(fl & PMML_SUB)
+#define FL_PUBP(fl)	(fl & PMML_PUB)
 
 	if ((s = mc6_socket()) < 0) {
 		goto out;
@@ -431,8 +436,6 @@ static const char hdr[] =
 	/* socktyp: pub */"\x01"
 	/* final-short is implicit */;
 
-#define PMML_CHNMSG_HAS_IDN	(4U)
-
 struct zmtp_str_s {
 	size_t z;
 	const char *s;
@@ -476,7 +479,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 		if (UNLIKELY(msg->flags & PMML_CHNMSG_HAS_IDN)) {
 			const struct pmml_chnmsg_idn_s *idn = (const void*)msg;
 
-			s = (struct zmtp_str_s)ZMTP_STR(idn->idz, idn->idn);
+			s = (struct zmtp_str_s){.z = idn->idz, .s = idn->idn};
 		}
 
 		/* copy length and beef of idn */
@@ -515,7 +518,7 @@ snarf_string(const char **p)
 	return (struct zmtp_str_s){.z = z, .s = s};
 }
 
-int
+ssize_t
 pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 {
 	const char *p = buf;
@@ -589,7 +592,7 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 			return -1;
 		}
 	}
-	return 0;
+	return p - buf;
 }
 
 
@@ -742,21 +745,31 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 	struct pmml_chnmsg_idn_s __msg[1];
 	struct sockasso_s *sa;
 	ssize_t nrd;
+	const char *bp;
 
-	if ((nrd = recv(s, buf, sizeof(buf), 0)) <= 0) {
+	if ((bp = buf, nrd = recv(s, buf, sizeof(buf), 0)) <= 0) {
 		/* don't even bother */
 		return -1;
-	} else if (UNLIKELY((__msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN,
-			     pmml_chck((void*)__msg, buf, nrd)) < 0)) {
-		/* can't check */
-		return -1;
-	} else if ((sa = find_sockasso(s)) == NULL) {
+	} else if (UNLIKELY((sa = find_sockasso(s)) == NULL)) {
 		/* no subs */
 		return -1;
-	} else if (!matchesp(sa, __msg->chnmsg.chan, __msg->chnmsg.chnz)) {
-		return -1;
 	}
-	/* otherwise */
+
+	/* let pmml_chck() know that we are up for identity retrieval */
+	__msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN;
+	/* process them all */
+	for (ssize_t nch;
+	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)__msg, bp, nrd)) > 0);
+	     bp += nch, nrd -= nch) {
+		if (matchesp(sa, __msg->chnmsg.chan, __msg->chnmsg.chnz)) {
+			goto match;
+		}
+	}
+	/* whatever went wrong */
+	return -1;
+
+match:
+	/* we're lucky */
 	if (LIKELY(!(msg->flags & PMML_CHNMSG_HAS_IDN))) {
 		*msg = __msg->chnmsg;
 	} else {

@@ -1,4 +1,4 @@
-/*** pimmel-wait.c -- pimmel subscriber
+/*** pimmel-moni.c -- pimmel subscriber
  *
  * Copyright (C) 2013 Sebastian Freundt
  *
@@ -77,22 +77,31 @@
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
-	struct pmml_chnmsg_s msg[1];
+	char buf[1280];
+	struct pmml_chnmsg_idn_s msg[1];
+	ssize_t nrd;
+	const char *bp;
 
 	/* read it off the wire for inspection */
-	if ((msg->flags = 0U, pmml_wait(w->fd, msg)) < 0) {
-		/* nope, doesn't match */
+	if ((bp = buf, nrd = recv(w->fd, buf, sizeof(buf), 0)) <= 0) {
+		/* don't even bother */
 		return;
 	}
+	/* let pmml_chck() know that we are up for identity retrieval */
+	msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN;
+	/* process them all */
+	for (ssize_t nch;
+	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)msg, bp, nrd)) > 0);
+	     bp += nch, nrd -= nch) {
+		/* we KNOW that msg's slots are pointers into buf */
+		buf[msg->idn - buf + msg->idz] = '\t';
+		buf[msg->chnmsg.chan - buf + msg->chnmsg.chnz] = '\t';
+		buf[msg->chnmsg.msg - buf + msg->chnmsg.msz] = '\n';
 
-	/* otherwise finalise channel with \t and message with \n */
-	strchr(msg->chan, *msg->chan)[msg->chnz] = '\t';
-	strchr(msg->msg, *msg->msg)[msg->msz] = '\n';
-
-	/* FANTASTIC, print the message and unloop */
-	write(STDOUT_FILENO, msg->chan, msg->chnz + 1);
-	write(STDOUT_FILENO, msg->msg, msg->msz + 1);
-	ev_unloop(EV_A_ EVUNLOOP_ALL);
+		write(STDOUT_FILENO, msg->idn, msg->idz + 1);
+		write(STDOUT_FILENO, msg->chnmsg.chan, msg->chnmsg.chnz + 1);
+		write(STDOUT_FILENO, msg->chnmsg.msg, msg->chnmsg.msz + 1);
+	}
 	return;
 }
 
@@ -111,8 +120,8 @@ sigall_cb(EV_P_ ev_signal *UNUSED(w), int UNUSED(revents))
 # pragma GCC diagnostic ignored "-Wswitch"
 # pragma GCC diagnostic ignored "-Wswitch-enum"
 #endif /* __INTEL_COMPILER */
-#include "pimmel-wait-clo.h"
-#include "pimmel-wait-clo.c"
+#include "pimmel-moni-clo.h"
+#include "pimmel-moni-clo.c"
 #if defined __INTEL_COMPILER
 # pragma warning (default:593)
 # pragma warning (default:181)
@@ -139,10 +148,6 @@ main(int argc, char *argv[])
 	if (pimmel_parser(argc, argv, argi)) {
 		res = 1;
 		goto out;
-	} else if (argi->inputs_num < 1U) {
-		pimmel_parser_print_help();
-		res = 1;
-		goto out;
 	}
 
 	if ((s = pmml_socket(PMML_SUB)) < 0) {
@@ -163,16 +168,8 @@ main(int argc, char *argv[])
 	ev_io_init(sub, sub_cb, s, EV_READ);
 	ev_io_start(EV_A_ sub);
 
-	/* subscribe to channel */
-	for (unsigned int i = 0; i < argi->inputs_num; i++) {
-		(void)pmml_sub(s, argi->inputs[i]);
-	}
-
 	/* now wait for events to arrive */
 	ev_loop(EV_A_ 0);
-
-	/* unsubscribe from all channels */
-	pmml_uns(s, NULL);
 
 	ev_io_stop(EV_A_ sub);
 	pmml_close(s);
@@ -185,4 +182,4 @@ out:
 	return res;
 }
 
-/* pimmel-wait.c ends here */
+/* pimmel-moni.c ends here */

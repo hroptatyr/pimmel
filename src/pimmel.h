@@ -64,9 +64,13 @@ extern "C" {
 /**
  * Socket flags, can be |'d. */
 enum {
-	PMML_FL_NONE,
-	PMML_FL_PUB,
-	PMML_FL_SUB,
+	PMML_NONE = 0U,
+	PMML_PUB = 1U,
+	PMML_SUB = 2U,
+};
+
+enum {
+	PMML_CHNMSG_HAS_IDN = 4U,
 };
 
 struct pmml_chnmsg_s {
@@ -95,7 +99,7 @@ struct pmml_chnmsg_idn_s {
 /* first up socket creation and deletion */
 /**
  * Return a socket set up for PUB'ing or SUB'ing, according to FLAGS. */
-extern int pmml_socket(int flags, ...);
+extern int pmml_socket(int flags);
 
 /**
  * Close a socket and free associated resources. */
@@ -104,13 +108,17 @@ extern int pmml_close(int sock);
 /* next up packing/unpacking messages */
 /**
  * Produce wire-representation of MSG in provided buffer TGT of size TSZ.
- * If successful return the number of bytes on the wire, or -1 otherwise. */
+ * If successful return the number of bytes on the wire, or -1 otherwise.
+ * This routine will operate regardless what has been subscribed to. */
 extern ssize_t
 pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg);
 
 /**
- * Check BUF (of size BSZ bytes) for channel notifications. */
-extern int
+ * Check BUF (of size BSZ bytes) for channel notifications.
+ * Put a copy of the message in *TGT and return the number of bytes
+ * consumed from BUF.
+ * This routine will operate regardless what has been subscribed to. */
+extern ssize_t
 pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz);
 
 /* finally sending and receiving */

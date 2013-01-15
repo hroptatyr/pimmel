@@ -43,6 +43,35 @@ pimmel_wait_LDFLAGS += $(libev_LIBS)
 pimmel_wait_LDADD = libpimmel.la
 BUILT_SOURCES += pimmel-wait-clo.c pimmel-wait-clo.h
 
+bin_PROGRAMS += pimmel-router
+pimmel_router_SOURCES = pimmel-router.c pimmel-router-clo.ggo
+pimmel_router_SOURCES += daemonise.c daemonise.h
+pimmel_router_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_router_CPPFLAGS += $(libev_CFLAGS)
+pimmel_router_LDFLAGS = $(AM_LDFLAGS) -static
+pimmel_router_LDFLAGS += $(libev_LIBS)
+pimmel_router_LDADD = libpimmel.la
+BUILT_SOURCES += pimmel-router-clo.c pimmel-router-clo.h
+
+bin_PROGRAMS += pimmel-dealer
+pimmel_dealer_SOURCES = pimmel-dealer.c pimmel-dealer-clo.ggo
+pimmel_dealer_SOURCES += daemonise.c daemonise.h
+pimmel_dealer_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_dealer_CPPFLAGS += $(libev_CFLAGS)
+pimmel_dealer_LDFLAGS = $(AM_LDFLAGS) -static
+pimmel_dealer_LDFLAGS += $(libev_LIBS)
+pimmel_dealer_LDADD = libpimmel.la
+BUILT_SOURCES += pimmel-dealer-clo.c pimmel-dealer-clo.h
+
+bin_PROGRAMS += pimmel-moni
+pimmel_moni_SOURCES = pimmel-moni.c pimmel-moni-clo.ggo
+pimmel_moni_CPPFLAGS = $(AM_CPPFLAGS)
+pimmel_moni_CPPFLAGS += $(libev_CFLAGS)
+pimmel_moni_LDFLAGS = $(AM_LDFLAGS) -static
+pimmel_moni_LDFLAGS += $(libev_LIBS)
+pimmel_moni_LDADD = libpimmel.la
+BUILT_SOURCES += pimmel-moni-clo.c pimmel-moni-clo.h
+
 
 ## our rule for gengetopt
 %.c %.h: %.ggo
