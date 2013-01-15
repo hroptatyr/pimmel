@@ -203,6 +203,9 @@ pmml_dealer_socket(ctx_t ctx)
 		goto out;
 	} else if (UNLIKELY((s = try_bind(&aires)) < 0)) {
 		goto out;
+	} else if (aires->ai_socktype == SOCK_DGRAM) {
+		/* skip the listening step */
+		;
 	} else if (UNLIKELY(listen(s, MAX_DCCP_CONNECTION_BACK_LOG) < 0)) {
 		close(s);
 		s = -1;
