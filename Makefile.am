@@ -8,7 +8,12 @@ SUBDIRS = src
 pkgconfigdir = @libdir@/pkgconfig
 pkgconfig_DATA = pimmel.pc
 
-EXTRA_DIST = .version git-version-gen
+EXTRA_DIST =
+EXTRA_DIST += .version git-version-gen
+EXTRA_DIST += pimmel.spec
+
+rpm: dist-gzip
+	rpmbuild -ta $(distdir).tar.gz
 
 # Version string management.  There are two files to be aware of:
 # .tarball-version - present only in a distribution tarball, and not in
