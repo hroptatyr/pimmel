@@ -18,6 +18,13 @@ pimmel
   </div>
   <div class="sidebar-stack">
     <ul>
+      <li>
+        <a href="http://travis-ci.org/hroptatyr/pimmel"><img src="https://secure.travis-ci.org/hroptatyr/pimmel.png?branch=master" alt="build status"></img></a>
+      </li>
+    </ul>
+  </div>
+  <div class="sidebar-stack">
+    <ul>
       <li><a href="https://github.com/hroptatyr/pimmel">github page</a></li>
       <li><a href="https://bitbucket.org/hroptatyr/pimmel/downloads/pimmel-0.1.0.tar.xz">latest release (pimmel-0.1.0.tar.xz)</a></li>
     </ul>
