@@ -73,6 +73,17 @@
 # define MAYBE_NOINLINE
 #endif	/* DEBUG_FLAG */
 
+static void
+nprint(const char *s, size_t z)
+{
+	size_t nwr = 0;
+
+	do {
+		nwr += write(STDOUT_FILENO, s + nwr, z - nwr);
+	} while (nwr < z);
+	return;
+}
+
 
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
@@ -94,13 +105,13 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)msg, bp, nrd)) > 0);
 	     bp += nch, nrd -= nch) {
 		/* we KNOW that msg's slots are pointers into buf */
-		buf[msg->idn - buf + msg->idz] = '\t';
-		buf[msg->chnmsg.chan - buf + msg->chnmsg.chnz] = '\t';
-		buf[msg->chnmsg.msg - buf + msg->chnmsg.msz] = '\n';
+		unconst(msg->idn)[msg->idz] = '\t';
+		unconst(msg->chnmsg.chan)[msg->chnmsg.chnz] = '\t';
+		unconst(msg->chnmsg.msg)[msg->chnmsg.msz] = '\n';
 
-		write(STDOUT_FILENO, msg->idn, msg->idz + 1);
-		write(STDOUT_FILENO, msg->chnmsg.chan, msg->chnmsg.chnz + 1);
-		write(STDOUT_FILENO, msg->chnmsg.msg, msg->chnmsg.msz + 1);
+		nprint(msg->idn, msg->idz + 1);
+		nprint(msg->chnmsg.chan, msg->chnmsg.chnz + 1);
+		nprint(msg->chnmsg.msg, msg->chnmsg.msz + 1);
 	}
 	return;
 }
