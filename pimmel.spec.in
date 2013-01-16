@@ -57,6 +57,12 @@ make %{?_smp_mflags}
 %clean
 rm -rf -- %{buildroot}
 
+%post
+/sbin/ldconfig
+
+%postun
+/sbin/ldconfig
+
 
 %files
 %defattr(-,root,root,-)
