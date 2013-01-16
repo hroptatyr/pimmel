@@ -73,6 +73,17 @@
 # define MAYBE_NOINLINE
 #endif	/* DEBUG_FLAG */
 
+static void
+nprint(const char *s, size_t z)
+{
+	size_t nwr = 0;
+
+	do {
+		nwr += write(STDOUT_FILENO, s + nwr, z - nwr);
+	} while (nwr < z);
+	return;
+}
+
 
 static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
@@ -85,13 +96,14 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 		return;
 	}
 
-	/* otherwise finalise channel with \t and message with \n */
-	strchr(msg->chan, *msg->chan)[msg->chnz] = '\t';
-	strchr(msg->msg, *msg->msg)[msg->msz] = '\n';
+	/* otherwise print channel \t message \n */
+	unconst(msg->chan)[msg->chnz] = '\t';
+	unconst(msg->msg)[msg->msz] = '\n';
 
-	/* FANTASTIC, print the message and unloop */
-	write(STDOUT_FILENO, msg->chan, msg->chnz + 1);
-	write(STDOUT_FILENO, msg->msg, msg->msz + 1);
+	nprint(msg->chan, msg->chnz + 1/*for \t*/);
+	nprint(msg->msg, msg->msz + 1/*for \n*/);
+
+	/* and off we go */
 	ev_unloop(EV_A_ EVUNLOOP_ALL);
 	return;
 }
