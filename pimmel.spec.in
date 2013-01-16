@@ -61,7 +61,7 @@ rm -rf -- %{buildroot}
 %{_includedir}/pimmel.h
 %{_libdir}/libpimmel.la
 %{_libdir}/libpimmel.a
-%{_libdir}/libpimmel.so
+%{_libdir}/libpimmel.so*
 %{_libdir}/pkgconfig/@PACKAGE@.pc
 
 %changelog
