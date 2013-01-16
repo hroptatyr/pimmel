@@ -2,7 +2,7 @@ Summary: simple pub-sub messaging library
 Name: @PACKAGE@
 Version: @VERSION@
 Release: 1%{?dist}
-License: BSD-3-Caluse
+License: BSD-3-Clause
 Group: Development/Languages/C and C++
 URL: https://hroptatyr.github.com/pimmel
 Source0: %{name}-%{version}.tar.gz
