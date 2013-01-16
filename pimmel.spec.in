@@ -1,3 +1,9 @@
+%define build_release_tarball 1
+%if 0%{?sles_version}
+# don't know how to make rpmlint happy on SLE
+%define build_release_tarball 0
+%endif
+
 Summary: simple pub-sub messaging library
 Name: @PACKAGE@
 Version: @VERSION@
