@@ -33,6 +33,17 @@ Requires: %{name} = %{version}
 This package contains the header files and libraries needed for
 compiling programs using the %{name} library.
 
+%if %{build_release_tarball}
+%package release-tarball
+Summary: Tarball to be released by upstream
+Group: Development/Libraries/Other
+Requires: do_not_install_this_but_unrpm
+
+%description release-tarball
+This packackge contains a clean "make dist" tarball to be released by
+upstream maintainers.  Do not install this package.  Just unrpm it.
+%endif
+
 %prep
 %setup -q
 
@@ -63,6 +74,11 @@ rm -rf -- %{buildroot}
 %{_libdir}/libpimmel.a
 %{_libdir}/libpimmel.so*
 %{_libdir}/pkgconfig/@PACKAGE@.pc
+
+%if %{build_release_tarball}
+%files release-tarball -f /tmp/files_release_tarball
+%defattr(-,root,root,-)
+%endif
 
 %changelog
 * Wed Jan 16 2013 Sebastian Freundt <freundt@ga-group.nl> - 
