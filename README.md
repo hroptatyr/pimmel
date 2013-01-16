@@ -13,6 +13,7 @@ and uses zmtp (0mq's wire protocol) to propagate messages.
 + github page: <https://github.com/hroptatyr/pimmel>
 + downloads: <https://bitbucket.org/hroptatyr/pimmel/downloads>
 
+
 shell clients
 -------------
 There's 2 little shell clients aboard at the moment.
@@ -27,6 +28,7 @@ Then, somewhere else, issue
 
 which publishes the message `successful` to the channel `/test`, and,
 if present, wake any subscribers up.
+
 
 C API
 -----
@@ -68,6 +70,33 @@ pmml_noti(s, &(struct pmml_chnmsg_s){
 pmml_close(s);
 ```
 
+
+Router/Dealer
+-------------
+By default packets are sent to the site-local multicast address
+`ff05::134` which has been assigned to us by IANA.  However, spanning a
+multicast network across the internet can be hard (routers in between
+would have to cooperate), therefore pimmel ships with a router and a
+dealer program that do just that.
+
+The router collects (and possibly filters) messages going to the site
+local network it sees, then repacks them and pushes them to a dedicated
+socket as specified.  In our example all messages are forwarded using
+unicast udp to remote.example.com, port 12345:
+
+    pimmel-router / udp://remote.example.com:12345
+
+The counterpiece of the router is the dealer which, vaguely put, does
+the opposite: It takes all messages from a specific socket and publishes
+them to the site local network at hand.  The example assumes to be run
+on `remote.example.com`:
+
+    pimmel-dealer / udp://12345
+
+That's it.  Everything that goes in on the one network will show up on
+the network local to `remote.example.com`.
+
+
 FAQ
 ---
 
@@ -107,9 +136,11 @@ FAQ
    should be seen as one man mumbling the name of his favourite horse in
    the cubical of a public toilet to fellow bog riders.
 
+
 2. But [0mq][1] ...
 
    More buts, there you go then, use [0mq][1] if it serves you better.
+
 
 3. One datagram per message sounds like a waste
 
@@ -118,9 +149,11 @@ FAQ
    destination (like logging, financial tick data, or measurements from
    your weather station) use something else, [unserding][3] maybe.
 
+
 4. Will the API be stable?
 
    No.  It will be simple but not necessarily stable.
+
 
   [1]: https://github.com/zeromq/libzmq
   [2]: https://github.com/250bpm/nanomsg
