@@ -13,6 +13,7 @@ and uses zmtp (0mq's wire protocol) to propagate messages.
 + github page: <https://github.com/hroptatyr/pimmel>
 + downloads: <https://bitbucket.org/hroptatyr/pimmel/downloads>
 
+
 shell clients
 -------------
 There's 2 little shell clients aboard at the moment.
@@ -27,6 +28,7 @@ Then, somewhere else, issue
 
 which publishes the message `successful` to the channel `/test`, and,
 if present, wake any subscribers up.
+
 
 C API
 -----
@@ -134,9 +136,11 @@ FAQ
    should be seen as one man mumbling the name of his favourite horse in
    the cubical of a public toilet to fellow bog riders.
 
+
 2. But [0mq][1] ...
 
    More buts, there you go then, use [0mq][1] if it serves you better.
+
 
 3. One datagram per message sounds like a waste
 
@@ -145,9 +149,11 @@ FAQ
    destination (like logging, financial tick data, or measurements from
    your weather station) use something else, [unserding][3] maybe.
 
+
 4. Will the API be stable?
 
    No.  It will be simple but not necessarily stable.
+
 
   [1]: https://github.com/zeromq/libzmq
   [2]: https://github.com/250bpm/nanomsg
