@@ -180,6 +180,11 @@ FAQ
    No.  It will be simple but not necessarily stable.
 
 
+5. Where's the python bindings?
+
+   I should ask you that.  Send them to me ASAP.
+
+
   [1]: https://github.com/zeromq/libzmq
   [2]: https://github.com/250bpm/nanomsg
   [3]: https://github.com/hroptatyr/unserding
