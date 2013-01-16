@@ -100,4 +100,16 @@
 # define PROT_MEM	(PROT_READ | PROT_WRITE)
 #endif	/* PROT_MEM */
 
+
+union cp_u {
+	const char *c;
+	char *p;
+} __attribute__((transparent_union));
+
+static inline __attribute__((pure)) char*
+unconst(union cp_u x)
+{
+	return x.p;
+}
+
 #endif	/* INCLUDED_nifty_h_ */
