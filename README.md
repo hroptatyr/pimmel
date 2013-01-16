@@ -68,6 +68,33 @@ pmml_noti(s, &(struct pmml_chnmsg_s){
 pmml_close(s);
 ```
 
+
+Router/Dealer
+-------------
+By default packets are sent to the site-local multicast address
+`ff05::134` which has been assigned to us by IANA.  However, spanning a
+multicast network across the internet can be hard (routers in between
+would have to cooperate), therefore pimmel ships with a router and a
+dealer program that do just that.
+
+The router collects (and possibly filters) messages going to the site
+local network it sees, then repacks them and pushes them to a dedicated
+socket as specified.  In our example all messages are forwarded using
+unicast udp to remote.example.com, port 12345:
+
+    pimmel-router / udp://remote.example.com:12345
+
+The counterpiece of the router is the dealer which, vaguely put, does
+the opposite: It takes all messages from a specific socket and publishes
+them to the site local network at hand.  The example assumes to be run
+on `remote.example.com`:
+
+    pimmel-dealer / udp://12345
+
+That's it.  Everything that goes in on the one network will show up on
+the network local to `remote.example.com`.
+
+
 FAQ
 ---
 
