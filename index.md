@@ -1,5 +1,28 @@
+---
+title: dateutils
+layout: default
+---
+
 pimmel
 ======
+
+<div id="rtop" class="sidebar-widget">
+  <div class="sidebar-stack">
+    <ul>
+      <li>
+        <script type="text/javascript"
+          src="http://www.ohloh.net/p/632570/widgets/project_languages.js">
+        </script>
+      </li>
+    </ul>
+  </div>
+  <div class="sidebar-stack">
+    <ul>
+      <li><a href="https://github.com/hroptatyr/pimmel">github page</a></li>
+      <li><a href="https://bitbucket.org/hroptatyr/pimmel/downloads/pimmel-0.1.0.tar.xz">latest release (pimmel-0.1.0.tar.xz)</a></li>
+    </ul>
+  </div>
+</div>
 
 pimmel is a simple pub-sub messaging library, much like 0mq[1] or
 nanomsg[2], without all the transports they support and without the
