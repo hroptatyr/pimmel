@@ -387,7 +387,7 @@ pmml_socket(int fl)
 	}
 
 	/* always reply to the global service? */
-	mc6_set_dest(s, PMML_MCAST6_LINK_LOCAL, PMML_NETWORK_SERVICE);
+	mc6_set_dest(s, PMML_MCAST6_SITE_LOCAL, PMML_NETWORK_SERVICE);
 
 out:
 	return s;
