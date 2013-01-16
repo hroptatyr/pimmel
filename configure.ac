@@ -75,5 +75,6 @@ dnl final output
 dnl -------------------------------------------------------------------------
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([pimmel.pc])
+AC_CONFIG_FILES([pimmel.spec])
 AC_CONFIG_FILES([src/Makefile])
 AC_OUTPUT
