@@ -24,10 +24,14 @@ reliability promise.
 pimmel uses udp6 multicast to span ad-hoc topologies (on ff0x::134)
 and uses zmtp (0mq's wire protocol) to propagate messages.
 
-%package devel
+%package -n %{name}-devel
 Summary: Development files for %{name}
 Group: Development/Libraries
 Requires: %{name} = %{version}
+
+%description -n %{name}-devel
+This package contains the header files and libraries needed for
+compiling programs using the %{name} library.
 
 %prep
 %setup -q
