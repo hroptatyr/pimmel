@@ -1,0 +1,66 @@
+Summary: simple pub-sub messaging library
+Name: @PACKAGE@
+Version: @VERSION@
+Release: 1%{?dist}
+License: BSD-3-Caluse
+Group: Development/Languages/C and C++
+URL: https://hroptatyr.github.com/pimmel
+Source0: %{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+## for git builds
+BuildRequires: autoconf
+BuildRequires: automake
+BuildRequires: gengetopt
+BuildRequires: libtool
+## for dist builds
+BuildRequires: libev-devel
+BuildRequires: pkgconfig
+
+%description
+pimmel is a simple pub-sub messaging library, much like 0mq or
+nanomsg, without all the transports they support and without the
+reliability promise.
+
+pimmel uses udp6 multicast to span ad-hoc topologies (on ff0x::134)
+and uses zmtp (0mq's wire protocol) to propagate messages.
+
+%package devel
+Summary: Development files for %{name}
+Group: Development/Libraries
+Requires: %{name} = %{version}
+
+%prep
+%setup -q
+
+%build
+%configure --docdir=%{_docdir}/%{name}
+make %{?_smp_mflags}
+
+%install
+%{?make_install} %{!?make_install:make install DESTDIR=%{buildroot}}
+
+%clean
+rm -rf -- %{buildroot}
+
+
+%files
+%defattr(-,root,root,-)
+%doc
+%{_bindir}/pimmel-wait
+%{_bindir}/pimmel-noti
+%{_bindir}/pimmel-router
+%{_bindir}/pimmel-dealer
+%{_bindir}/pimmel-moni
+
+%files devel
+%defattr(-,root,root,-)
+%{_includedir}/pimmel.h
+%{_libdir}/libpimmel.la
+%{_libdir}/libpimmel.a
+%{_libdir}/libpimmel.so
+%{_libdir}/pkgconfig/@PACKAGE@.pg
+
+%changelog
+* Wed Jan 16 2013 Sebastian Freundt <freundt@ga-group.nl> - 
+- Initial build.
+
