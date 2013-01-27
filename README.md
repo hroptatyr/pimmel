@@ -37,7 +37,7 @@ least:
 
 ```c
 /* for the waiter */
-int s = pmml_socket(PMML_FL_SUB);
+int s = pmml_socket(PMML_SUB);
 
 pmml_sub(s, "/test");
 while (pselect|poll|epoll(s, ...)) {
@@ -61,7 +61,7 @@ The publisher part is similarly simple:
 
 ```c
 /* for the notifier */
-int s = pmml_socket(PMML_FL_PUB);
+int s = pmml_socket(PMML_PUB);
 
 pmml_noti(s, &(struct pmml_chnmsg_s){
                 .chan = "/test",
