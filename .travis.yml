@@ -24,7 +24,7 @@ script:
   - mkdir \=build
   - cd \=build
   - ../configure $OPTIONS
-  - make clean all check distcheck || {cat test/test-suite.log; test "0" = "1"}
+  - make clean all check distcheck || (cat test/test-suite.log; test "0" = "1")
 
 ## whitelist
 branches:
