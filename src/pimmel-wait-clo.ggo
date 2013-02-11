@@ -8,3 +8,7 @@ By default only 1 event from the channel is reported."
 option "timeout" -
 	"Wait at most SEC seconds"
 	int typestr="SEC" optional
+
+option "key" -
+	"Verify messages against key in FILE."
+	string typestr="FILE" optional
