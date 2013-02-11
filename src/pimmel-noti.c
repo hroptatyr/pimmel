@@ -77,8 +77,8 @@ sigall_cb(EV_P_ ev_signal *UNUSED(w), int UNUSED(revents))
 # pragma GCC diagnostic ignored "-Wswitch"
 # pragma GCC diagnostic ignored "-Wswitch-enum"
 #endif /* __INTEL_COMPILER */
-#include "pimmel-wait-clo.h"
-#include "pimmel-wait-clo.c"
+#include "pimmel-noti-clo.h"
+#include "pimmel-noti-clo.c"
 #if defined __INTEL_COMPILER
 # pragma warning (default:593)
 # pragma warning (default:181)
