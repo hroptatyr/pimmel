@@ -129,8 +129,12 @@ main(int argc, char *argv[])
 	{
 		const char *chn = argi->inputs[0];
 		const char *msg = argi->inputs[1];
+		const char *key = argi->key_arg;
 
-		if (pmml_noti(s, &(struct pmml_chnmsg_s){
+		if (argi->key_given && pmml_sign_key(s, chn, key) < 0) {
+			fprintf(stderr, "cannot use keyfile `%s'\n", key);
+			res = 1;
+		} else if (pmml_noti(s, &(struct pmml_chnmsg_s){
 				.chan = chn,
 				.flags = 0U,
 				.msg = msg}) < 0) {
