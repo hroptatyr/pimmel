@@ -127,12 +127,13 @@ find_sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
 	return NULL;
 }
 
-static bool
+static const union __chn_u*
 matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
 {
 /* check if the channel we monitor is a superdirectory of CHN */
 	union __chn_u *p;
 	const union __chn_u *ep;
+	const union __chn_u *best = NULL;
 
 	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
 	     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
@@ -140,10 +141,12 @@ matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
 		    memcmp(p->str, chn, p->len) == 0 &&
 		    (p->len == chz || chn[p->len] == '/')) {
 			/* found him */
-			return true;
+			if (best == NULL || p->len > best->len) {
+				best = p;
+			}
 		}
 	}
-	return false;
+	return best;
 }
 
 #if defined HAVE_OPENSSL
