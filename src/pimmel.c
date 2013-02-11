@@ -46,6 +46,11 @@
 #if defined HAVE_ARPA_INET_H
 # include <arpa/inet.h>
 #endif	/* HAVE_ARPA_INET_H */
+#if defined HAVE_OPENSSL_EVP_H && defined HAVE_OPENSSL_PEM_H
+# include <openssl/evp.h>
+# include <openssl/pem.h>
+# define HAVE_OPENSSL	1
+#endif	/* HAVE_OPENSSL_EVP_H && HAVE_OPENSSL_PEM_H */
 #include "pimmel.h"
 #include "ud-sock.h"
 #include "nifty.h"
@@ -99,7 +104,11 @@ static struct sockasso_s *sockasso;
 
 
 /* subscriptions */
-#define SUB_INC	(1U)
+#if defined HAVE_OPENSSL
+# define SUB_INC	(1U + sizeof(void*))
+#else  /* !HAVE_OPENSSL */
+# define SUB_INC	(1U)
+#endif	/* HAVE_OPENSSL */
 
 static union __chn_u*
 find_sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
@@ -137,10 +146,41 @@ matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
 	return false;
 }
 
+#if defined HAVE_OPENSSL
+static EVP_PKEY*
+sub_get_pkey(const union __chn_u x[static 1])
+{
+	EVP_PKEY *pk;
+
+	memcpy(&pk, x->str + x->len + 1U, sizeof(pk));
+	return pk;
+}
+
+static void
+sub_set_pkey(union __chn_u *restrict x, const EVP_PKEY *pk)
+{
+	memcpy(x->str + x->len + 1U, &pk, sizeof(pk));
+	return;
+}
+#endif	/* HAVE_OPENSSL */
+
 static void
 free_subs(struct sockasso_s sa[static 1])
 {
 	if (sa->sub != NULL) {
+#if defined HAVE_OPENSSL
+		union __chn_u *p;
+		const union __chn_u *ep;
+
+		for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
+		     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
+			EVP_PKEY *pk;
+
+			if ((pk = sub_get_pkey(p)) != NULL) {
+				EVP_PKEY_free(pk);
+			}
+		}
+#endif	/* HAVE_OPENSSL */
 		sa->sub_nex = 0UL;
 		free(sa->sub);
 		sa->sub = NULL;
@@ -707,6 +747,14 @@ pmml_uns(int s, ...)
 		size_t ol = __nex64(sa->sub_nex);
 		size_t nu;
 
+#if defined HAVE_OPENSSL
+		EVP_PKEY *pk;
+
+		if ((pk = sub_get_pkey(p)) != NULL) {
+			EVP_PKEY_free(pk);
+		}
+#endif	/* HAVE_OPENSSL */
+
 		memmove(p, nex, rest);
 		sa->sub_nex -= (char*)nex - (char*)p;
 		nu = __nex64(sa->sub_nex);
@@ -723,6 +771,92 @@ pmml_uns(int s, ...)
 		free_subs(sa);
 	}
 	return 0;
+}
+
+
+int
+pmml_vrfy_key(int s, const char *chan, const char *keyfile)
+{
+	int res = -1;
+
+#if defined HAVE_OPENSSL
+	struct sockasso_s *sa;
+	size_t chnz;
+	union __chn_u *sub;
+	FILE *fp;
+	EVP_PKEY *pk;
+
+	if ((sa = find_sockasso(s)) == NULL) {
+		/* do fuckall if there's no subs */
+		return -1;
+	} else if (UNLIKELY((chnz = strlen(chan),
+			     sub = find_sub(sa, chan, chnz)) == NULL)) {
+		/* not subscribed */
+		return -1;
+	} else if ((pk = sub_get_pkey(sub)) != NULL) {
+		EVP_PKEY_free(pk);
+	}
+
+	/* start over */
+	pk = NULL;
+	if ((fp = fopen(keyfile, "r")) == NULL) {
+		goto set;
+	} else if ((pk = PEM_read_PUBKEY(fp, NULL, NULL, NULL)) == NULL) {
+		goto clos;
+	}
+
+	/* success */
+	res = 0;
+clos:
+	fclose(fp);
+set:
+	sub_set_pkey(sub, pk);
+#endif	/* HAVE_OPENSSL */
+	return res;
+}
+
+int
+pmml_sign_key(int s, const char *chan, const char *keyfile)
+{
+	int res = -1;
+
+#if defined HAVE_OPENSSL
+	struct sockasso_s *sa;
+	size_t chnz;
+	union __chn_u *sub;
+	FILE *fp;
+	EVP_PKEY *pk;
+
+	if (pmml_sub(s, chan) < 0) {
+		/* subscribe to it just to have the asso */
+		return -1;
+	} else if ((sa = find_sockasso(s)) == NULL) {
+		/* do fuckall if there's no subs */
+		return -1;
+	} else if (UNLIKELY((chnz = strlen(chan),
+			     sub = find_sub(sa, chan, chnz)) == NULL)) {
+		/* not subscribed */
+		return -1;
+	} else if ((pk = sub_get_pkey(sub)) != NULL) {
+		EVP_PKEY_free(pk);
+	}
+
+	/* start over */
+	pk = NULL;
+	if ((fp = fopen(keyfile, "r")) == NULL) {
+		goto set;
+	} else if ((pk = PEM_read_PrivateKey(fp, NULL, NULL, NULL)) == NULL) {
+		goto clos;
+	}
+
+	/* success */
+	res = 0;
+clos:
+	fclose(fp);
+set:
+	sub_set_pkey(sub, pk);
+#endif	/* HAVE_OPENSSL */
+	return res;
 }
 
 
