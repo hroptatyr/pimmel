@@ -51,9 +51,9 @@ dnl   def: sxe_cv_feat_libev yes|no
 				sxe_cv_feat_libev="yes"
 				libev_LIBS="-lev"
 				libev_CFLAGS=""
+				$1
 			else
 				$2
-				AC_MSG_ERROR([lib headers not found])
 			fi
 		])
 	])
