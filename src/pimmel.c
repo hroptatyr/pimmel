@@ -98,6 +98,57 @@ static size_t ref_sockasso;
 static struct sockasso_s *sockasso;
 
 
+/* subscriptions */
+#define SUB_INC	(1U)
+
+static union __chn_u*
+find_sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
+{
+/* like matchesp() but return a ptr and be strict about the matches */
+	union __chn_u *p;
+	const union __chn_u *ep;
+
+	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
+	     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
+		if (p->len == chz && memcmp(p->str, chn, chz) == 0) {
+			/* found him */
+			return p;
+		}
+	}
+	return NULL;
+}
+
+static bool
+matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
+{
+/* check if the channel we monitor is a superdirectory of CHN */
+	union __chn_u *p;
+	const union __chn_u *ep;
+
+	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
+	     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
+		if (p->len <= chz &&
+		    memcmp(p->str, chn, p->len) == 0 &&
+		    (p->len == chz || chn[p->len] == '/')) {
+			/* found him */
+			return true;
+		}
+	}
+	return false;
+}
+
+static void
+free_subs(struct sockasso_s sa[static 1])
+{
+	if (sa->sub != NULL) {
+		sa->sub_nex = 0UL;
+		free(sa->sub);
+		sa->sub = NULL;
+	}
+	return;
+}
+
+
 /* sockasso */
 static struct sockasso_s*
 find_sockasso(int s)
@@ -141,17 +192,6 @@ make_sockasso(int s)
 out:
 	ref_sockasso++;
 	return sa;
-}
-
-static void
-free_subs(struct sockasso_s sa[static 1])
-{
-	if (sa->sub != NULL) {
-		sa->sub_nex = 0UL;
-		free(sa->sub);
-		sa->sub = NULL;
-	}
-	return;
 }
 
 static void
@@ -597,42 +637,6 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 
 
 /* subscription handling, this should be specific to S. */
-static union __chn_u*
-find_sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
-{
-/* like matchesp() but return a ptr and be strict about the matches */
-	union __chn_u *p;
-	const union __chn_u *ep;
-
-	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
-	     p < ep; p = (void*)(p->c + 1 + p->len)) {
-		if (p->len == chz && memcmp(p->str, chn, chz) == 0) {
-			/* found him */
-			return p;
-		}
-	}
-	return NULL;
-}
-
-static bool
-matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
-{
-/* check if the channel we monitor is a superdirectory of CHN */
-	union __chn_u *p;
-	const union __chn_u *ep;
-
-	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
-	     p < ep; p = (void*)(p->c + 1 + p->len)) {
-		if (p->len <= chz &&
-		    memcmp(p->str, chn, p->len) == 0 &&
-		    (p->len == chz || chn[p->len] == '/')) {
-			/* found him */
-			return true;
-		}
-	}
-	return false;
-}
-
 static inline __attribute__((pure)) size_t
 __nex64(size_t x)
 {
@@ -677,7 +681,7 @@ pmml_sub(int s, const char *chan, ...)
 		p->len = (uint8_t)chnz;
 		memcpy(p->str, chan, chnz);
 		/* up the index pointer */
-		sa->sub_nex += chnz + 1U;
+		sa->sub_nex += chnz + SUB_INC;
 	}
 	return 0;
 }
@@ -698,7 +702,7 @@ pmml_uns(int s, ...)
 	for (const char *chn; (chn = va_arg(vap, const char*)); i++) {
 		size_t chz = strlen(chn);
 		union __chn_u *p = find_sub(sa, chn, chz);
-		union __chn_u *nex = (void*)(p->str + p->len);
+		union __chn_u *nex = (void*)(p->str + p->len + SUB_INC);
 		size_t rest = sa->sub_nex - (nex->c - sa->sub->c);
 		size_t ol = __nex64(sa->sub_nex);
 		size_t nu;
