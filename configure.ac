@@ -64,6 +64,8 @@ dnl packages we allow/support
 dnl -------------------------------------------------------------------------
 ## event lib
 SXE_CHECK_LIBEV
+## openssl ciphers and digests
+SXE_CHECK_OPENSSL
 
 dnl must come after all AC_LINK_IFELSE clauses
 ## check for the ldflags
