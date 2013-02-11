@@ -2,3 +2,7 @@ args "--unamed-opts --no-handle-error --long-help -a pimmel_args_info -f pimmel_
 package "pimmel-noti"
 usage "pimmel-noti [OPTION]... CHANNEL MESSAGE"
 description "Publish MESSAGE in CHANNEL."
+
+option "key" -
+	"Sign messages with key in FILE."
+	string typestr="FILE" optional

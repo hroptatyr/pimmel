@@ -1,4 +1,4 @@
-dnl sxe-libev.m4 -- Event queue and things like that
+dnl sxe-openssl.m4 -- openssl ciphers and digests
 dnl
 dnl Copyright (C) 2005-2013 Sebastian Freundt
 dnl
@@ -31,31 +31,22 @@ dnl WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 dnl OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 dnl
-dnl This file is part of twsgluum
+dnl This file is part of pimmel
 
-AC_DEFUN([SXE_CHECK_LIBEV], [
-dnl Usage: SXE_CHECK_LIBEV([ACTION_IF_FOUND], [ACTION_IF_NOT_FOUND])
-dnl   def: sxe_cv_feat_libev yes|no
+AC_DEFUN([SXE_CHECK_OPENSSL], [
+dnl Usage: SXE_CHECK_OPENSSL([ACTION_IF_FOUND], [ACTION_IF_NOT_FOUND])
+dnl   def: sxe_cv_feat_openssl yes|no
 
-	AC_CACHE_VAL([sxe_cv_feat_libev], [
-		sxe_cv_feat_libev="no"
-		PKG_CHECK_MODULES_HEADERS([libev], [libev >= 4.0], [ev.h], [
-			sxe_cv_feat_libev="yes"
+	AC_CACHE_VAL([sxe_cv_feat_openssl], [
+		sxe_cv_feat_openssl="no"
+		PKG_CHECK_MODULES_HEADERS([openssl], [openssl >= 0.9.8], [dnl
+			openssl/evp.h openssl/pem.h
+		], [
+			sxe_cv_feat_openssl="yes"
 			$1
 		], [
-			## grrr, for all the distros without an libev.pc file
-			AC_CHECK_HEADERS([ev.h])
-
-			if test "${ac_cv_header_ev_h}" = "yes"; then
-				## assume expat is out there somewhere
-				sxe_cv_feat_libev="yes"
-				libev_LIBS="-lev"
-				libev_CFLAGS=""
-				$1
-			else
-				$2
-			fi
+			$2
 		])
 	])
 
-])dnl SXE_CHECK_LIBEV
+])dnl SXE_CHECK_OPENSSL

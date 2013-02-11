@@ -10,6 +10,7 @@ pkgconfig_DATA = pimmel.pc
 
 EXTRA_DIST =
 EXTRA_DIST += .version git-version-gen
+EXTRA_DIST += README.md
 EXTRA_DIST += pimmel.spec
 
 rpm: dist-gzip

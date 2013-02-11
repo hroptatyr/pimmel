@@ -63,11 +63,18 @@ dnl -------------------------------------------------------------------------
 dnl packages we allow/support
 dnl -------------------------------------------------------------------------
 ## event lib
-SXE_CHECK_LIBEV
+SXE_CHECK_LIBEV([:], [
+	AC_MSG_ERROR([libev not found])
+])
+## openssl ciphers and digests
+SXE_CHECK_OPENSSL([:], [
+	AC_MSG_WARN([openssl not found.
+While this requirement is not strictly mandatory it will leave the API
+in a less functional state.])
+])
 
 dnl must come after all AC_LINK_IFELSE clauses
 ## check for the ldflags
-SXE_CHECK_LDFLAGS
 SXE_CHECK_LIBTOOL
 
 dnl -------------------------------------------------------------------------
