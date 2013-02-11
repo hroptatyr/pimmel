@@ -898,7 +898,7 @@ set:
 
 /* high level */
 int
-pmml_noti(int s, const struct pmml_chnmsg_s *msg)
+pmml_noti(int s, const struct pmml_chnmsg_s *src)
 {
 	char buf[1280];
 	ssize_t z;
@@ -913,23 +913,25 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 	struct pmml_chnmsg_idnsig_s __msg[1];
 
 	if ((sa = find_sockasso(s)) != NULL &&
-	    (chan = msg->chan,
-	     chnz = msg->chnz ?: strlen(chan),
+	    (chan = src->chan,
+	     chnz = src->chnz ?: strlen(chan),
 	     sub = find_sub(sa, chan, chnz)) != NULL &&
 	    (pk = sub_get_pkey(sub)) != NULL &&
 	    /* sig already there? */
-	    !(msg->flags & PMML_CHNMSG_HAS_SIG)) {
+	    !(src->flags & PMML_CHNMSG_HAS_SIG)) {
 		const EVP_MD *md = EVP_sha256();
 		EVP_MD_CTX mdctx[1];
 		static unsigned char sigbuf[256];
 		static unsigned int sigbsz = sizeof(sigbuf);
+		const char *msg = src->msg;
+		const size_t msz = src->msz ?: strlen(msg);
 		int signedp = 0;
 
 		/* sign the whole shebang */
-		if (msg->flags & PMML_CHNMSG_HAS_IDN) {
-			memcpy(__msg, msg, sizeof(struct pmml_chnmsg_idn_s));
+		if (src->flags & PMML_CHNMSG_HAS_IDN) {
+			memcpy(__msg, src, sizeof(struct pmml_chnmsg_idn_s));
 		} else {
-			memcpy(__msg, msg, sizeof(struct pmml_chnmsg_s));
+			memcpy(__msg, src, sizeof(struct pmml_chnmsg_s));
 		}
 
 		__msg->chnmsg.flags |= PMML_CHNMSG_HAS_SIG;
@@ -938,7 +940,7 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 			;
 		} else if (!EVP_SignUpdate(mdctx, chan, chnz)) {
 			;
-		} else if (!EVP_SignUpdate(mdctx, msg->msg, msg->msz)) {
+		} else if (!EVP_SignUpdate(mdctx, msg, msz)) {
 			;
 		} else if (!EVP_SignFinal(mdctx, sigbuf, &sigbsz, pk)) {
 			;
@@ -946,7 +948,7 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 			/* success */
 			__msg->ssz = sigbsz;
 			__msg->sig = sigbuf;
-			msg = (const struct pmml_chnmsg_s*)__msg;
+			src = (const struct pmml_chnmsg_s*)__msg;
 			signedp = 1;
 		}
 
@@ -958,7 +960,7 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 	}
 #endif	/* HAVE_OPENSSL */
 
-	if ((z = pmml_pack(buf, sizeof(buf), msg)) < 0) {
+	if ((z = pmml_pack(buf, sizeof(buf), src)) < 0) {
 		return -1;
 	} else if ((nwr = pmml_send(s, buf, (size_t)z, 0)) < 0) {
 		return -1;
