@@ -180,6 +180,21 @@ main(int argc, char *argv[])
 		(void)pmml_sub(s, argi->inputs[i]);
 	}
 
+	if (argi->key_given) {
+		/* this should be per-channel really */
+		const char *key = argi->key_arg;
+
+		for (unsigned int i = 0; i < argi->inputs_num; i++) {
+			const char *chn = argi->inputs[i];
+			
+			if (pmml_vrfy_key(s, chn, key) < 0) {
+				fprintf(stderr, "\
+cannot use keyfile `%s' on channel %s\n", key, chn);
+				break;
+			}
+		}
+	}
+
 	/* now wait for events to arrive */
 	ev_loop(EV_A_ 0);
 
