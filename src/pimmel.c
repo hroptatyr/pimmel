@@ -938,6 +938,8 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 			;
 		} else if (!EVP_SignUpdate(mdctx, chan, chnz)) {
 			;
+		} else if (!EVP_SignUpdate(mdctx, msg->msg, msg->msz)) {
+			;
 		} else if (!EVP_SignFinal(mdctx, sigbuf, &sigbsz, pk)) {
 			;
 		} else {
@@ -965,7 +967,7 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 }
 
 int
-pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
+pmml_wait(int s, struct pmml_chnmsg_s *restrict tgt)
 {
 	static char buf[1280];
 	struct pmml_chnmsg_idnsig_s __msg[1] = {{0}};
@@ -996,6 +998,8 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 			const EVP_MD *md = EVP_sha256();
 			const unsigned char *sig = __msg->sig;
 			const size_t ssz = __msg->ssz;
+			const char *msg = __msg->chnmsg.msg;
+			const size_t msz = __msg->chnmsg.msz;
 			EVP_PKEY *pk;
 			EVP_MD_CTX mdctx[1];
 			int matchp = 0;
@@ -1010,6 +1014,8 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 				     EVP_VerifyInit(mdctx, md))) {
 				;
 			} else if (!EVP_VerifyUpdate(mdctx, chan, chnz)) {
+				;
+			} else if (!EVP_VerifyUpdate(mdctx, msg, msz)) {
 				;
 			} else if (EVP_VerifyFinal(mdctx, sig, ssz, pk) != 1) {
 				;
@@ -1031,12 +1037,12 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 
 match:
 	/* we're lucky */
-	if (msg->flags & PMML_CHNMSG_HAS_SIG) {
-		memcpy(msg, __msg, sizeof(struct pmml_chnmsg_idnsig_s));
-	} else if (msg->flags & PMML_CHNMSG_HAS_IDN) {
-		memcpy(msg, __msg, sizeof(struct pmml_chnmsg_idn_s));
+	if (tgt->flags & PMML_CHNMSG_HAS_SIG) {
+		memcpy(tgt, __msg, sizeof(struct pmml_chnmsg_idnsig_s));
+	} else if (tgt->flags & PMML_CHNMSG_HAS_IDN) {
+		memcpy(tgt, __msg, sizeof(struct pmml_chnmsg_idn_s));
 	} else {
-		*msg = __msg->chnmsg;
+		*tgt = __msg->chnmsg;
 	}
 	return 0;
 }
