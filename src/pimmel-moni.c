@@ -105,13 +105,18 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)msg, bp, nrd)) > 0);
 	     bp += nch, nrd -= nch) {
 		/* we KNOW that msg's slots are pointers into buf */
-		unconst(msg->idn)[msg->idz] = '\t';
 		unconst(msg->chnmsg.chan)[msg->chnmsg.chnz] = '\t';
-		unconst(msg->chnmsg.msg)[msg->chnmsg.msz] = '\n';
 
-		nprint(msg->idn, msg->idz + 1);
 		nprint(msg->chnmsg.chan, msg->chnmsg.chnz + 1);
-		nprint(msg->chnmsg.msg, msg->chnmsg.msz + 1);
+		nprint(msg->chnmsg.msg, msg->chnmsg.msz);
+		if (msg->idz) {
+			nprint("\tidn:", 5);
+			nprint(msg->idn, msg->idz);
+		}
+		if (msg->ssz) {
+			nprint("\tsig:OK", 7);
+		}
+		nprint("\n", 1);
 	}
 	return;
 }
