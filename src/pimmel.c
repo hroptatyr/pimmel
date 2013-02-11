@@ -904,6 +904,58 @@ pmml_noti(int s, const struct pmml_chnmsg_s *msg)
 	ssize_t z;
 	ssize_t nwr;
 
+#if defined HAVE_OPENSSL
+	const struct sockasso_s *sa;
+	const char *chan;
+	size_t chnz;
+	const union __chn_u *sub;
+	EVP_PKEY *pk;
+	struct pmml_chnmsg_idnsig_s __msg[1];
+
+	if ((sa = find_sockasso(s)) != NULL &&
+	    (chan = msg->chan,
+	     chnz = msg->chnz ?: strlen(chan),
+	     sub = find_sub(sa, chan, chnz)) != NULL &&
+	    (pk = sub_get_pkey(sub)) != NULL &&
+	    /* sig already there? */
+	    !(msg->flags & PMML_CHNMSG_HAS_SIG)) {
+		const EVP_MD *md = EVP_sha256();
+		EVP_MD_CTX mdctx[1];
+		static unsigned char sigbuf[256];
+		static unsigned int sigbsz = sizeof(sigbuf);
+		int signedp = 0;
+
+		/* sign the whole shebang */
+		if (msg->flags & PMML_CHNMSG_HAS_IDN) {
+			memcpy(__msg, msg, sizeof(struct pmml_chnmsg_idn_s));
+		} else {
+			memcpy(__msg, msg, sizeof(struct pmml_chnmsg_s));
+		}
+
+		__msg->chnmsg.flags |= PMML_CHNMSG_HAS_SIG;
+
+		if (!(EVP_MD_CTX_init(mdctx), EVP_SignInit(mdctx, md))) {
+			;
+		} else if (!EVP_SignUpdate(mdctx, chan, chnz)) {
+			;
+		} else if (!EVP_SignFinal(mdctx, sigbuf, &sigbsz, pk)) {
+			;
+		} else {
+			/* success */
+			__msg->ssz = sigbsz;
+			__msg->sig = sigbuf;
+			msg = (const struct pmml_chnmsg_s*)__msg;
+			signedp = 1;
+		}
+
+		EVP_MD_CTX_cleanup(mdctx);
+		EVP_cleanup();
+		if (UNLIKELY(!signedp)) {
+			return -1;
+		}
+	}
+#endif	/* HAVE_OPENSSL */
+
 	if ((z = pmml_pack(buf, sizeof(buf), msg)) < 0) {
 		return -1;
 	} else if ((nwr = pmml_send(s, buf, (size_t)z, 0)) < 0) {
@@ -916,8 +968,9 @@ int
 pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 {
 	static char buf[1280];
-	struct pmml_chnmsg_idn_s __msg[1];
-	struct sockasso_s *sa;
+	struct pmml_chnmsg_idnsig_s __msg[1] = {{0}};
+	const struct sockasso_s *sa;
+	const union __chn_u *sub;
 	ssize_t nrd;
 	const char *bp;
 
@@ -930,12 +983,46 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 	}
 
 	/* let pmml_chck() know that we are up for identity retrieval */
-	__msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN;
+	__msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN | PMML_CHNMSG_HAS_SIG;
 	/* process them all */
 	for (ssize_t nch;
 	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)__msg, bp, nrd)) > 0);
 	     bp += nch, nrd -= nch) {
-		if (matchesp(sa, __msg->chnmsg.chan, __msg->chnmsg.chnz)) {
+		const char *chan = __msg->chnmsg.chan;
+		const size_t chnz = __msg->chnmsg.chnz;
+
+		if ((sub = matchesp(sa, chan, chnz)) != NULL) {
+#if defined HAVE_OPENSSL
+			const EVP_MD *md = EVP_sha256();
+			const unsigned char *sig = __msg->sig;
+			const size_t ssz = __msg->ssz;
+			EVP_PKEY *pk;
+			EVP_MD_CTX mdctx[1];
+			int matchp = 0;
+
+			if ((pk = sub_get_pkey(sub)) == NULL) {
+				/* channel not secured */
+				goto match;
+			} else if (ssz == 0U) {
+				/* no signature but signed channel */
+				break;
+			} else if (!(EVP_MD_CTX_init(mdctx),
+				     EVP_VerifyInit(mdctx, md))) {
+				;
+			} else if (!EVP_VerifyUpdate(mdctx, chan, chnz)) {
+				;
+			} else if (EVP_VerifyFinal(mdctx, sig, ssz, pk) != 1) {
+				;
+			} else {
+				matchp = 1;
+			}
+
+			EVP_MD_CTX_cleanup(mdctx);
+			EVP_cleanup();
+			if (UNLIKELY(!matchp)) {
+				break;
+			}
+#endif	/* HAVE_OPENSSL */
 			goto match;
 		}
 	}
@@ -944,10 +1031,12 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict msg)
 
 match:
 	/* we're lucky */
-	if (LIKELY(!(msg->flags & PMML_CHNMSG_HAS_IDN))) {
-		*msg = __msg->chnmsg;
+	if (msg->flags & PMML_CHNMSG_HAS_SIG) {
+		memcpy(msg, __msg, sizeof(struct pmml_chnmsg_idnsig_s));
+	} else if (msg->flags & PMML_CHNMSG_HAS_IDN) {
+		memcpy(msg, __msg, sizeof(struct pmml_chnmsg_idn_s));
 	} else {
-		*(struct pmml_chnmsg_idn_s*)msg = *__msg;
+		*msg = __msg->chnmsg;
 	}
 	return 0;
 }
