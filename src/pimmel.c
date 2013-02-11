@@ -837,7 +837,7 @@ pmml_vrfy_key(int s, const char *chan, const char *keyfile)
 	pk = NULL;
 	if ((fp = fopen(keyfile, "r")) == NULL) {
 		goto set;
-	} else if ((pk = PEM_read_PUBKEY(fp, NULL, NULL, NULL)) == NULL) {
+	} else if ((pk = PEM_read_PrivateKey(fp, NULL, NULL, NULL)) == NULL) {
 		goto clos;
 	}
 
