@@ -63,7 +63,9 @@ dnl -------------------------------------------------------------------------
 dnl packages we allow/support
 dnl -------------------------------------------------------------------------
 ## event lib
-SXE_CHECK_LIBEV
+SXE_CHECK_LIBEV([:], [
+	AC_MSG_ERROR([libev not found])
+])
 ## openssl ciphers and digests
 SXE_CHECK_OPENSSL
 
