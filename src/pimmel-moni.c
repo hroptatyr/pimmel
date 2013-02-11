@@ -89,7 +89,7 @@ static void
 sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 {
 	char buf[1280];
-	struct pmml_chnmsg_idn_s msg[1];
+	struct pmml_chnmsg_idnsig_s msg[1];
 	ssize_t nrd;
 	const char *bp;
 
@@ -99,7 +99,7 @@ sub_cb(EV_P_ ev_io *w, int UNUSED(revents))
 		return;
 	}
 	/* let pmml_chck() know that we are up for identity retrieval */
-	msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN;
+	msg->chnmsg.flags = PMML_CHNMSG_HAS_IDN | PMML_CHNMSG_HAS_SIG;
 	/* process them all */
 	for (ssize_t nch;
 	     LIKELY(nrd > 0 && (nch = pmml_chck((void*)msg, bp, nrd)) > 0);
