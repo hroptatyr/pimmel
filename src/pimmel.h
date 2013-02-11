@@ -71,6 +71,7 @@ enum {
 
 enum {
 	PMML_CHNMSG_HAS_IDN = 4U,
+	PMML_CHNMSG_HAS_SIG = 8U,
 };
 
 struct pmml_chnmsg_s {
@@ -93,6 +94,19 @@ struct pmml_chnmsg_idn_s {
 	size_t idz;
 	/** identity string */
 	const char *idn;
+};
+
+/** like pmml_chnmsg_s but with signature attached */
+struct pmml_chnmsg_idnsig_s {
+	struct pmml_chnmsg_s chnmsg;
+	/** length of identity IDN in bytes */
+	size_t idz;
+	/** identity string */
+	const char *idn;
+	/** length of signature in bytes */
+	size_t ssz;
+	/** signature */
+	const unsigned char *sig;
 };
 
 
@@ -144,6 +158,14 @@ extern int pmml_sub(int s, const char *chan, ...);
  * Unsubscribe from all messages on S, or if const char *CHAN argument
  * is given unsubscribe from messages to channel CHAN only. */
 extern int pmml_uns(int s, /* const char *chan */...);
+
+/**
+ * For SUB sockets S use KEY to verify if publishing to CHAN is permitted. */
+extern int pmml_vrfy_key(int s, const char *chan, const char *key);
+
+/**
+ * For PUB sockets S use KEY to sign publications to CHAN. */
+extern int pmml_sign_key(int s, const char *chan, const char *key);
 
 #if defined __cplusplus
 }
