@@ -574,6 +574,17 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 		p += shove_string(p, tsz - (p - tgt), s);
 	}
 
+	if (msg->flags & PMML_CHNMSG_HAS_SIG) {
+		const struct pmml_chnmsg_idnsig_s *sig = (const void*)msg;
+		struct zmtp_str_s s = {
+			.z = sig->ssz,
+			.s = (const char*)sig->sig,
+		};
+
+		*p++ = '\x01';
+		p += shove_string(p, tsz - (p - tgt), s);
+	}
+
 	/* final-short now, we just assume it's a short message anyway */
 	*p++ = '\x00';
 	{
@@ -655,7 +666,29 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 	}
 
 	/* final short next? */
-	if (UNLIKELY(*p++ != '\x00')) {
+	switch (*p++) {
+		struct zmtp_str_s s;
+	case '\x00':
+		break;
+	case '\x01':
+		s = snarf_string(&p);
+
+		/* copy identity */
+		if (tgt->flags & PMML_CHNMSG_HAS_SIG) {
+			struct pmml_chnmsg_idnsig_s *restrict sig = (void*)tgt;
+
+			sig->ssz = s.z;
+			sig->sig = (const unsigned char*)s.s;
+		}
+
+		/* ffw p */
+		if (UNLIKELY(p >= ep)) {
+			return -1;
+		} else if (UNLIKELY(*p++ != '\x00')) {
+			return -1;
+		}
+		break;
+	default:
 		return -1;
 	}
 
