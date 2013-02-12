@@ -19,6 +19,7 @@ noinst_HEADERS += nifty.h
 
 lib_LTLIBRARIES += libpimmel.la
 libpimmel_la_SOURCES = pimmel.c
+libpimmel_la_SOURCES += sub.c sub.h
 libpimmel_la_CFLAGS = -fPIC
 libpimmel_la_CPPFLAGS = $(AM_CPPFLAGS)
 libpimmel_la_CPPFLAGS += $(openssl_CFLAGS)
