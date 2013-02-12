@@ -54,6 +54,7 @@
 #include "pimmel.h"
 #include "ud-sock.h"
 #include "nifty.h"
+#include "sub.h"
 
 #if !defined IPPROTO_IPV6
 # error system not fit for ipv6 transport
@@ -81,115 +82,17 @@ static struct ipv6_mreq ALGN16(mreq6_silo);
 static struct ipv6_mreq ALGN16(mreq6_lilo);
 static union ud_sockaddr_u dst = {0};
 
-/* stuff we want to associate with sockets */
-union __chn_u {
-	struct {
-		uint8_t len;
-		char str[0];
-	};
-	char c[0];
-};
-
 struct sockasso_s {
 	int s;
 	unsigned int fl;
-	/* alloc size of sub */
-	size_t sub_nex;
-	union __chn_u *sub;
+	/* subscriptions */
+	struct sublist_s subs[1];
 };
 
+/* stuff we want to associate with sockets */
 static size_t nsockasso;
 static size_t ref_sockasso;
 static struct sockasso_s *sockasso;
-
-
-/* subscriptions */
-#if defined HAVE_OPENSSL
-# define SUB_INC	(1U + sizeof(void*))
-#else  /* !HAVE_OPENSSL */
-# define SUB_INC	(1U)
-#endif	/* HAVE_OPENSSL */
-
-static union __chn_u*
-find_sub(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
-{
-/* like matchesp() but return a ptr and be strict about the matches */
-	union __chn_u *p;
-	const union __chn_u *ep;
-
-	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
-	     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
-		if (p->len == chz && memcmp(p->str, chn, chz) == 0) {
-			/* found him */
-			return p;
-		}
-	}
-	return NULL;
-}
-
-static const union __chn_u*
-matchesp(const struct sockasso_s sa[static 1], const char *chn, size_t chz)
-{
-/* check if the channel we monitor is a superdirectory of CHN */
-	union __chn_u *p;
-	const union __chn_u *ep;
-	const union __chn_u *best = NULL;
-
-	for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
-	     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
-		if (p->len <= chz &&
-		    memcmp(p->str, chn, p->len) == 0 &&
-		    (p->len == chz || chn[p->len] == '/')) {
-			/* found him */
-			if (best == NULL || p->len > best->len) {
-				best = p;
-			}
-		}
-	}
-	return best;
-}
-
-#if defined HAVE_OPENSSL
-static EVP_PKEY*
-sub_get_pkey(const union __chn_u x[static 1])
-{
-	EVP_PKEY *pk;
-
-	memcpy(&pk, x->str + x->len + 1U, sizeof(pk));
-	return pk;
-}
-
-static void
-sub_set_pkey(union __chn_u *restrict x, const EVP_PKEY *pk)
-{
-	memcpy(x->str + x->len + 1U, &pk, sizeof(pk));
-	return;
-}
-#endif	/* HAVE_OPENSSL */
-
-static void
-free_subs(struct sockasso_s sa[static 1])
-{
-	if (sa->sub != NULL) {
-#if defined HAVE_OPENSSL
-		union __chn_u *p;
-		const union __chn_u *ep;
-
-		for (p = sa->sub, ep = (const void*)(sa->sub->c + sa->sub_nex);
-		     p < ep; p = (void*)(p->c + p->len + SUB_INC)) {
-			EVP_PKEY *pk;
-
-			if ((pk = sub_get_pkey(p)) != NULL) {
-				EVP_PKEY_free(pk);
-			}
-		}
-#endif	/* HAVE_OPENSSL */
-		sa->sub_nex = 0UL;
-		free(sa->sub);
-		sa->sub = NULL;
-	}
-	return;
-}
 
 
 /* sockasso */
@@ -240,7 +143,7 @@ out:
 static void
 free_sockasso(struct sockasso_s sa[static 1])
 {
-	free_subs(sa);
+	free_subs(sa->subs);
 	sa->s = 0;
 	return;
 }
@@ -713,12 +616,6 @@ pmml_chck(struct pmml_chnmsg_s *restrict tgt, const char *buf, size_t bsz)
 
 
 /* subscription handling, this should be specific to S. */
-static inline __attribute__((pure)) size_t
-__nex64(size_t x)
-{
-	return ((x + 63U) / 64U) * 64U;
-}
-
 int
 pmml_sub(int s, const char *chan, ...)
 {
@@ -734,31 +631,8 @@ pmml_sub(int s, const char *chan, ...)
 		chnz--;
 	}
 
-	/* go through sub before we add CHAN */
-	if (UNLIKELY(find_sub(sa, chan, chnz) != NULL)) {
-		/* already subscribed */
-		return 0;
-	}
-
-	/* check if p is large enough */
-	{
-		union __chn_u *p = (void*)(sa->sub->c + sa->sub_nex);
-		size_t ol = __nex64(sa->sub_nex);
-		size_t nu = __nex64(sa->sub_nex + chnz + 1U);
-
-		if (UNLIKELY(ol < nu)) {
-			sa->sub = realloc(sa->sub, nu);
-
-			/* recompute p in terms of new base ptr sa->sub */
-			p = (void*)(sa->sub->c + sa->sub_nex);
-		}
-
-		/* copy the subscription */
-		p->len = (uint8_t)chnz;
-		memcpy(p->str, chan, chnz);
-		/* up the index pointer */
-		sa->sub_nex += chnz + SUB_INC;
-	}
+	/* just add the bugger */
+	add_sub(sa->subs, chan, chnz);
 	return 0;
 }
 
@@ -777,34 +651,14 @@ pmml_uns(int s, ...)
 	va_start(vap, s);
 	for (const char *chn; (chn = va_arg(vap, const char*)); i++) {
 		size_t chz = strlen(chn);
-		union __chn_u *p = find_sub(sa, chn, chz);
-		union __chn_u *nex = (void*)(p->str + p->len + SUB_INC);
-		size_t rest = sa->sub_nex - (nex->c - sa->sub->c);
-		size_t ol = __nex64(sa->sub_nex);
-		size_t nu;
 
-#if defined HAVE_OPENSSL
-		EVP_PKEY *pk;
-
-		if ((pk = sub_get_pkey(p)) != NULL) {
-			EVP_PKEY_free(pk);
-		}
-#endif	/* HAVE_OPENSSL */
-
-		memmove(p, nex, rest);
-		sa->sub_nex -= (char*)nex - (char*)p;
-		nu = __nex64(sa->sub_nex);
-
-		if (ol > nu) {
-			/* also shrink the string buffer */
-			sa->sub = realloc(sa->sub, nu);
-		}
+		rem_sub(sa->subs, chn, chz);
 	}
 	va_end(vap);
 
 	/* unsubscribe all channels then */
 	if (i == 0) {
-		free_subs(sa);
+		free_subs(sa->subs);
 	}
 	return 0;
 }
@@ -818,7 +672,7 @@ pmml_vrfy_key(int s, const char *chan, const char *keyfile)
 #if defined HAVE_OPENSSL
 	struct sockasso_s *sa;
 	size_t chnz;
-	union __chn_u *sub;
+	sub_t sub;
 	FILE *fp;
 	EVP_PKEY *pk;
 
@@ -826,7 +680,7 @@ pmml_vrfy_key(int s, const char *chan, const char *keyfile)
 		/* do fuckall if there's no subs */
 		return -1;
 	} else if (UNLIKELY((chnz = strlen(chan),
-			     sub = find_sub(sa, chan, chnz)) == NULL)) {
+			     sub = find_sub(sa->subs, chan, chnz)) == NULL)) {
 		/* not subscribed */
 		return -1;
 	} else if ((pk = sub_get_pkey(sub)) != NULL) {
@@ -859,7 +713,7 @@ pmml_sign_key(int s, const char *chan, const char *keyfile)
 #if defined HAVE_OPENSSL
 	struct sockasso_s *sa;
 	size_t chnz;
-	union __chn_u *sub;
+	sub_t sub;
 	FILE *fp;
 	EVP_PKEY *pk;
 
@@ -870,7 +724,7 @@ pmml_sign_key(int s, const char *chan, const char *keyfile)
 		/* do fuckall if there's no subs */
 		return -1;
 	} else if (UNLIKELY((chnz = strlen(chan),
-			     sub = find_sub(sa, chan, chnz)) == NULL)) {
+			     sub = find_sub(sa->subs, chan, chnz)) == NULL)) {
 		/* not subscribed */
 		return -1;
 	} else if ((pk = sub_get_pkey(sub)) != NULL) {
@@ -908,14 +762,14 @@ pmml_noti(int s, const struct pmml_chnmsg_s *src)
 	const struct sockasso_s *sa;
 	const char *chan;
 	size_t chnz;
-	const union __chn_u *sub;
+	sub_t sub;
 	EVP_PKEY *pk;
 	struct pmml_chnmsg_idnsig_s __msg[1];
 
 	if ((sa = find_sockasso(s)) != NULL &&
 	    (chan = src->chan,
 	     chnz = src->chnz ?: strlen(chan),
-	     sub = find_sub(sa, chan, chnz)) != NULL &&
+	     sub = find_sub(sa->subs, chan, chnz)) != NULL &&
 	    (pk = sub_get_pkey(sub)) != NULL &&
 	    /* sig already there? */
 	    !(src->flags & PMML_CHNMSG_HAS_SIG)) {
@@ -995,7 +849,7 @@ pmml_wait(int s, struct pmml_chnmsg_s *restrict tgt)
 		const char *chan = __msg->chnmsg.chan;
 		const size_t chnz = __msg->chnmsg.chnz;
 
-		if ((sub = matchesp(sa, chan, chnz)) != NULL) {
+		if ((sub = sub_matches_p(sa->subs, chan, chnz)) != NULL) {
 #if defined HAVE_OPENSSL
 			const EVP_MD *md = EVP_sha256();
 			const unsigned char *sig = __msg->sig;
