@@ -507,7 +507,7 @@ pmml_pack(char *restrict tgt, size_t tsz, const struct pmml_chnmsg_s *msg)
 static struct zmtp_str_s
 snarf_string(const char **p)
 {
-	size_t z = *(*p)++;
+	size_t z = (uint8_t)*(*p)++;
 	const char *s = *p;
 
 	/* copy channel info */
